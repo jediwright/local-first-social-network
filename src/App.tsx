@@ -93,7 +93,7 @@ export function App() {
       </header>
 
       {/* Main content */}
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex-1 overflow-y-auto max-w-2xl mx-auto w-full">
         {view === 'pings'    && <PingsView />}
         {view === 'channels' && (
           <div className="h-full">
