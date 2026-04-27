@@ -1,5 +1,5 @@
 /**
- * ydoc.ts — SocialPings Y.js document
+ * ydoc.ts — Local-First Social Y.js document
  *
  * Single Y.js document persisted to IndexedDB via y-indexeddb.
  * All application state lives here. Five maps:
@@ -146,7 +146,7 @@ export const channelMembershipsArray = getOrCreateProfileArray('channel_membersh
 
 // ─── IndexedDB persistence ──────────────────────────────────────────────────
 
-const DB_NAME = 'socialpings-v1'
+const DB_NAME = 'local-first-social-v1'
 
 export const persistence = new IndexeddbPersistence(DB_NAME, doc)
 

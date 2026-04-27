@@ -1,5 +1,5 @@
 /**
- * useYjs.ts — SocialPings reactive hooks
+ * useYjs.ts — Local-First Social reactive hooks
  *
  * THE CORE LESSON from checkout-seam: attach observers to ALL nested Y.Arrays
  * from the start. A Y.Array that gets an observer added later (after first render)

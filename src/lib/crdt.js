@@ -1,5 +1,5 @@
 /**
- * crdt.js — CRDT merge helpers for SocialPings
+ * crdt.js — CRDT merge helpers for Local-First Social
  *
  * Phase 4 placeholder.
  *

@@ -95,7 +95,7 @@ export function ProfileSetup({ onComplete }: ProfileSetupProps) {
         <div className="text-center mb-10">
           <div className="inline-flex items-center gap-2 mb-3">
             <span className="text-3xl">◎</span>
-            <span className="text-2xl font-semibold text-white tracking-tight">SocialPings</span>
+            <span className="text-2xl font-semibold text-white tracking-tight">Local-First Social</span>
           </div>
           <p className="text-gray-400 text-sm">You own your graph. The relay exits after connection.</p>
         </div>

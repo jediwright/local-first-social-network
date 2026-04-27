@@ -1,5 +1,5 @@
 /**
- * relay.js — SocialPings relay client
+ * relay.js — Local-First Social relay client
  *
  * Phase 4 placeholder.
  *

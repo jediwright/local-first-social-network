@@ -1,5 +1,5 @@
 /**
- * App.tsx — SocialPings shell
+ * App.tsx — Local-First Social shell
  *
  * Routing logic:
  *   - Wait for IndexedDB persistence to load
