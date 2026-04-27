@@ -16,6 +16,7 @@ import { ProfileSetup } from './components/Profile/ProfileSetup'
 import { ProfileView } from './components/Profile/ProfileView'
 import { PingsView } from './components/PingFeed/PingsView'
 import { ChannelList } from './components/Channels/ChannelList'
+import { ThreadsView } from './components/Threads/ThreadsView'
 import { OfflineBanner } from './components/shared/OfflineBanner'
 import { OnlineStatus } from './components/shared/OnlineStatus'
 
@@ -68,12 +69,12 @@ export function App() {
   }
 
   return (
-    <div className="h-screen bg-gray-950 flex flex-col overflow-hidden">
+    <div className="min-h-screen bg-gray-950 flex flex-col">
       <OfflineBanner />
 
       {/* Top bar */}
       <header className="border-b border-gray-800 px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-2" onClick={() => setView('pings')} style={{cursor:'pointer'}}>
+        <div className="flex items-center gap-2">
           <span className="text-indigo-400 text-lg">◎</span>
           <span className="text-white font-semibold text-sm tracking-tight">Local-First Social</span>
         </div>
@@ -103,7 +104,7 @@ export function App() {
             />
           </div>
         )}
-        {view === 'threads'  && <PlaceholderView name="Threads — Phase 3" />}
+        {view === 'threads'  && <ThreadsView />}
         {view === 'contacts' && <PlaceholderView name="Contacts — Phase 5" />}
         {view === 'profile'  && <ProfileView />}
       </main>
@@ -117,12 +118,12 @@ export function App() {
             className={`flex-1 flex flex-col items-center gap-1 py-3 text-xs transition ${
               view === id
                 ? 'text-indigo-400'
-                : phase <= 2
+                : phase <= 3
                   ? 'text-gray-500 hover:text-gray-300'
                   : 'text-gray-700 cursor-not-allowed'
             }`}
-            disabled={phase > 2}
-            title={phase > 2 ? `Phase ${phase}` : label}
+            disabled={phase > 3}
+            title={phase > 3 ? `Phase ${phase}` : label}
           >
             <span className="text-base leading-none">{icon}</span>
             <span>{label}</span>
