@@ -94,7 +94,7 @@ export function App() {
 
       {/* Main content */}
       <main className="flex-1 overflow-y-auto">
-        {view === 'pings'    && <div className="h-full flex flex-col"><PingsView /></div>}
+        {view === 'pings'    && <PingsView />}
         {view === 'channels' && (
           <div className="h-full">
             <ChannelList
