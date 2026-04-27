@@ -82,7 +82,7 @@ export function ThreadList({ selectedContactId, onSelectThread, onNewThread }: T
             <p className="text-gray-700 text-xs">Start a conversation with anyone by handle</p>
             <button
               onClick={onNewThread}
-              className="w-full bg-indigo-600 hover:bg-indigo-500 text-white text-sm py-3 rounded-xl transition font-medium"
+              className="w-full max-w-sm mx-auto bg-indigo-600 hover:bg-indigo-500 text-white text-sm py-3 rounded-xl transition font-medium"
             >
               Start a thread
             </button>
