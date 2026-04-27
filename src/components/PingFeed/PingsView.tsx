@@ -65,7 +65,7 @@ export function PingsView() {
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full px-2">
       <StreakBar streak={currentStreak} todayCount={todayCount} />
 
       {/* Channel header */}
