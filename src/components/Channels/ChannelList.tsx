@@ -147,7 +147,7 @@ export function ChannelList({ selectedChannelId, onSelectChannel }: ChannelListP
         {!showDiscover ? (
           <button
             onClick={() => setShowDiscover(true)}
-            className="w-full text-gray-500 hover:text-gray-300 text-xs py-2 transition flex items-center justify-center gap-1"
+            className="w-full bg-indigo-600 hover:bg-indigo-500 text-white text-sm py-3 rounded-xl transition font-medium flex items-center justify-center gap-1"
           >
             <span>+</span> Join a channel
           </button>
