@@ -10,15 +10,16 @@
  * Pings / Threads / Channels / Contacts (built in Phase 2+).
  */
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useDocumentReady, useIdentity, useProfileComplete } from './hooks/useYjs'
 import { ProfileSetup } from './components/Profile/ProfileSetup'
 import { ProfileView } from './components/Profile/ProfileView'
 import { PingsView } from './components/PingFeed/PingsView'
 import { ChannelList } from './components/Channels/ChannelList'
 import { ThreadsView } from './components/Threads/ThreadsView'
-import { OfflineBanner } from './components/shared/OfflineBanner'
-import { OnlineStatus } from './components/shared/OnlineStatus'
+import OfflineBanner from './components/shared/OfflineBanner'
+import { connect as relayConnect } from './lib/relay'
+import OnlineStatus from './components/shared/OnlineStatus'
 
 type View = 'pings' | 'threads' | 'channels' | 'contacts' | 'profile'
 
@@ -60,6 +61,13 @@ export function App() {
   const [onboarded, setOnboarded] = useState(false)
   const [selectedChannel, setSelectedChannel] = useState('general')
 
+  // Connect to relay once profile is ready
+  useEffect(() => {
+    if (ready && profileComplete) {
+      relayConnect()
+    }
+  }, [ready, profileComplete])
+
   // Wait for IndexedDB to hydrate
   if (!ready) return <LoadingScreen />
 
@@ -80,7 +88,7 @@ export function App() {
         </div>
         {identity && (
           <div className="flex items-center gap-3">
-            <OnlineStatus compact />
+            <OnlineStatus showLabel={false} />
             <div
               className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold cursor-pointer"
               style={{ backgroundColor: identity.avatarColor }}

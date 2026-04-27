@@ -112,6 +112,6 @@ export function useOnlineStatus() {
     displayStatus: computeDisplayStatus(relayState, networkOnline),
     relayState,
     networkOnline,
-    isRelayConnected: (displayStatus: string) => displayStatus === 'relay-connected',
+    isRelayConnected: displayStatus => displayStatus === 'relay-connected',
   };
 }
