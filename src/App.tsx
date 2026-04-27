@@ -68,7 +68,7 @@ export function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-950 flex flex-col">
+    <div className="h-screen bg-gray-950 flex flex-col overflow-hidden">
       <OfflineBanner />
 
       {/* Top bar */}
@@ -93,7 +93,7 @@ export function App() {
       </header>
 
       {/* Main content */}
-      <main className="flex-1 overflow-y-auto min-h-0">
+      <main className="flex-1 overflow-y-auto">
         {view === 'pings'    && <div className="h-full flex flex-col"><PingsView /></div>}
         {view === 'channels' && (
           <div className="h-full">
