@@ -117,7 +117,7 @@ export function PingsView() {
 
       {/* Floating ping button when composer is closed */}
       {!showComposer && (
-        <div className="p-4 border-t border-gray-800">
+        <div className="px-4 py-3 border-t border-gray-800">
           <button
             onClick={() => setShowComposer(true)}
             className="w-full bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl py-3 text-sm font-medium transition flex items-center justify-center gap-2"
