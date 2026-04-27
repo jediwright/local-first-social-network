@@ -68,7 +68,7 @@ export function App() {
   }
 
   return (
-    <div className="h-screen bg-gray-950 flex flex-col overflow-hidden max-w-7xl mx-auto border-x border-gray-800">
+    <div className="h-screen bg-gray-950 flex flex-col overflow-hidden">
       <OfflineBanner />
 
       {/* Top bar */}
