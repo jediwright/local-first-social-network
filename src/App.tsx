@@ -1,5 +1,5 @@
 /**
- * App.tsx — SocialPings shell
+ * App.tsx — Local-First Social shell
  *
  * Routing logic:
  *   - Wait for IndexedDB persistence to load
@@ -72,7 +72,7 @@ export function App() {
       <header className="border-b border-gray-800 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="text-indigo-400 text-lg">◎</span>
-          <span className="text-white font-semibold text-sm tracking-tight">SocialPings</span>
+          <span className="text-white font-semibold text-sm tracking-tight">Local-First Social</span>
         </div>
         {identity && (
           <div className="flex items-center gap-3">
