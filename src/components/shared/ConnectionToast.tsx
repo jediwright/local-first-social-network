@@ -3,7 +3,7 @@
  * local-first-social-network
  *
  * Slides in after a successful connection handshake.
- * Auto-dismisses after 6s. "Start a thread" CTA navigates directly.
+ * Persists until user acts. "Start a thread" navigates. × dismisses.
  */
 
 import { useState, useEffect } from 'react'
@@ -21,9 +21,7 @@ export default function ConnectionToast({ handle, onStartThread, onDismiss }: Co
   useEffect(() => {
     // Slide in
     const t1 = setTimeout(() => setVisible(true), 50)
-    // Auto-dismiss after 6s
-    const t2 = setTimeout(() => dismiss(), 6000)
-    return () => { clearTimeout(t1); clearTimeout(t2) }
+    return () => { clearTimeout(t1) }
   }, [])
 
   function dismiss() {
