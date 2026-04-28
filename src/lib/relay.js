@@ -257,7 +257,8 @@ function registerHandle() {
     console.warn('[relay-client] no handle in profile — skipping registration');
     return;
   }
-  sendMessage({ type: 'REGISTER_HANDLE', handle });
+  const prefixed = handle.startsWith('@') ? handle : `@${handle}`;
+    sendMessage({ type: 'REGISTER_HANDLE', handle: prefixed });
 }
 
 // ─── Message handler ──────────────────────────────────────────────────────────
@@ -355,6 +356,7 @@ function handleMessage(msg) {
       emit('error', { code: msg.code, message: msg.message });
       break;
 
+      case 'PONG': break; // keepalive response
     default:
       console.warn(`[relay-client] unhandled message type: ${msg.type}`);
   }
