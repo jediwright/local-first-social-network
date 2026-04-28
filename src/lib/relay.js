@@ -393,7 +393,7 @@ function wireDocUpdateForwarding(peerHandle) {
   docUpdateListener = (update, origin) => {
     // Don't echo back updates that originated from the relay (infinite loop guard)
     if (origin === 'relay') return;
-    if (getState() !== 'established') return;
+    if (connectionState !== 'established') return;
     sendMessage({
       type: 'CRDT_UPDATE',
       toHandle: peerHandle,
