@@ -76,14 +76,21 @@ export function App() {
 
   // Always-on incoming connection request listener
   useEffect(() => {
-    const unsub = on('connection_request', (data: {requestId: string, fromHandle: string}) => {
+    const unsubRequest = on('connection_request', (data: {requestId: string, fromHandle: string}) => {
       setIncomingRequests(prev => {
         if (prev.some(r => r.requestId === data.requestId)) return prev
-        setShowConnect(true) // auto-open modal when request arrives
+        setShowConnect(true)
         return [...prev, data]
       })
     })
-    return unsub
+    // Always-on connection accepted listener — show toast on initiator side
+    const unsubAccepted = on('connection_accepted', (data: {byHandle: string}) => {
+      if (data.byHandle) {
+        setShowConnect(false)
+        setConnectionToast(data.byHandle)
+      }
+    })
+    return () => { unsubRequest(); unsubAccepted() }
   }, [])
 
   // Wait for IndexedDB to hydrate
