@@ -364,6 +364,25 @@ export function canonicalThreadId(handleA: string, handleB: string): string {
  * These are artifacts from the Phase 4/5 @ normalization bug.
  * Safe to run on every load — only removes keys that don't match canonical format.
  */
+export function pruneMalformedTrustGraphKeys(): void {
+  const keysToMigrate: Array<[string, unknown]> = []
+  trustGraphMap.forEach((entry, key) => {
+    if (key.startsWith('@')) {
+      keysToMigrate.push([key.replace(/^@/, ''), entry])
+    }
+  })
+  if (keysToMigrate.length > 0) {
+    doc.transact(() => {
+      keysToMigrate.forEach(([newKey, entry]) => {
+        const oldKey = '@' + newKey
+        trustGraphMap.delete(oldKey)
+        trustGraphMap.set(newKey, entry as TrustEntry)
+      })
+    })
+    console.log(`[ydoc] migrated ${keysToMigrate.length} trust_graph key(s) with @ prefix`)
+  }
+}
+
 export function pruneMalformedThreadKeys(): void {
   const keysToDelete: string[] = []
   threadsMap.forEach((_arr, key) => {

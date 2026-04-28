@@ -35,6 +35,7 @@ import {
   getOrCreateThread,
   pruneAllExpiredPings,
   pruneMalformedThreadKeys,
+  pruneMalformedTrustGraphKeys,
   type Identity,
   type Preferences,
   type TrustEntry,
@@ -339,6 +340,7 @@ export function useDocumentReady(): { ready: boolean } {
     persistenceReady.then(() => {
       pruneAllExpiredPings()
       pruneMalformedThreadKeys()
+      pruneMalformedTrustGraphKeys()
       setReady(true)
     })
   }, [])
