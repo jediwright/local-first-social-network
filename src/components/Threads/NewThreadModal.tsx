@@ -21,7 +21,7 @@ function sanitizeHandle(raw: string): string {
 }
 
 export function NewThreadModal({ onOpen, onClose, initialHandle = '' }: NewThreadModalProps) {
-  const [handle, setHandle] = useState(initialHandle)
+  const [handle, setHandle] = useState(initialHandle.replace(/^@/, ''))
   const [error, setError] = useState('')
 
   const handleStart = () => {
