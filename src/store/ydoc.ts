@@ -384,12 +384,18 @@ export function pruneMalformedTrustGraphKeys(): void {
 }
 
 export function backfillTrustGraphFromThreads(): void {
+  const identity = profileMap.get('identity') as { handle?: string } | undefined
+  const myHandle = identity?.handle?.toLowerCase().replace(/^@/, '') ?? ''
+  if (!myHandle) return
+
   const threadKeys = [...threadsMap.keys()]
   let backfilled = 0
   for (const key of threadKeys) {
-    const bare = key.replace(/^@/, '').toLowerCase().trim()
-    if (bare && !trustGraphMap.get(bare)) {
-      trustGraphMap.set(bare, {
+    const parts = key.split(':')
+    if (parts.length !== 2) continue
+    const peer = parts[0] === myHandle ? parts[1] : parts[0]
+    if (peer && !trustGraphMap.get(peer)) {
+      trustGraphMap.set(peer, {
         tier: 'contact',
         connectedAt: new Date().toISOString(),
         syncStatus: 'synced',
