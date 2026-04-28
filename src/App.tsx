@@ -132,7 +132,7 @@ export function App() {
       {/* Connect modal */}
       {showConnect && (
         <div className="absolute top-14 right-4 z-50 w-80">
-          <ConnectionRequest onConnected={() => { setShowConnect(false) }} incomingRequests={incomingRequests} onDismissRequest={(id: string) => setIncomingRequests(prev => prev.filter(r => r.requestId !== id))} />
+          <ConnectionRequest onConnected={(handle) => { setShowConnect(false); setTimeout(() => setConnectionToast(prev => prev ?? handle), 400) }} incomingRequests={incomingRequests} onDismissRequest={(id: string) => setIncomingRequests(prev => prev.filter(r => r.requestId !== id))} />
         </div>
       )}
 
