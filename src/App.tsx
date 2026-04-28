@@ -92,6 +92,7 @@ export function App() {
           <div className="flex items-center gap-3">
             <OnlineStatus showLabel={false} />
             <button
+              onClick={() => setShowConnect(v => !v)}
               className="text-xs text-indigo-400 border border-indigo-800 rounded-lg px-2 py-1 hover:bg-indigo-950 transition"
             >⊕ Connect</button>
             <div
