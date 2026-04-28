@@ -11,7 +11,7 @@
  */
 
 import { useState, useEffect } from 'react'
-import { useDocumentReady, useIdentity, useProfileComplete } from './hooks/useYjs'
+import { useDocumentReady, useIdentity, useProfileComplete, usePreferences } from './hooks/useYjs'
 import { ProfileSetup } from './components/Profile/ProfileSetup'
 import { ProfileView } from './components/Profile/ProfileView'
 import { PingsView } from './components/PingFeed/PingsView'
@@ -22,6 +22,7 @@ import { connect as relayConnect, on } from './lib/relay'
 import OnlineStatus from './components/shared/OnlineStatus'
 import ConnectionRequest from './components/Connection/ConnectionRequest'
 import ConnectionToast from './components/shared/ConnectionToast'
+import ContactsView from './components/Contacts/ContactsView'
 
 type View = 'pings' | 'threads' | 'channels' | 'contacts' | 'profile'
 
@@ -36,22 +37,12 @@ function LoadingScreen() {
   )
 }
 
-function PlaceholderView({ name }: { name: string }) {
-  return (
-    <div className="flex-1 flex items-center justify-center p-8">
-      <div className="text-center space-y-2">
-        <p className="text-gray-500 text-sm">{name}</p>
-        <p className="text-gray-700 text-xs">Coming in Phase 2</p>
-      </div>
-    </div>
-  )
-}
 
 const NAV_ITEMS: Array<{ id: View; label: string; icon: string; phase: number }> = [
   { id: 'pings',    label: 'Pings',    icon: '◎', phase: 2 },
   { id: 'channels', label: 'Channels', icon: '#',  phase: 2 },
   { id: 'threads',  label: 'Threads',  icon: '≡',  phase: 3 },
-  { id: 'contacts', label: 'Contacts', icon: '⊕',  phase: 5 },
+  { id: 'contacts', label: 'Contacts', icon: '⊕',  phase: 4 },
   { id: 'profile',  label: 'Profile',  icon: '○',  phase: 1 },
 ]
 
@@ -65,6 +56,7 @@ export function App() {
   const [showConnect, setShowConnect] = useState(false)
   const [incomingRequests, setIncomingRequests] = useState<Array<{requestId: string, fromHandle: string}>>([])
   const [connectionToast, setConnectionToast] = useState<string | null>(null)
+  const prefs = usePreferences()
   const [pendingThreadHandle, setPendingThreadHandle] = useState<string | null>(null)
 
   // Connect to relay once profile is ready
@@ -77,6 +69,13 @@ export function App() {
   // Always-on incoming connection request listener
   useEffect(() => {
     const unsubRequest = on('connection_request', (data: {requestId: string, fromHandle: string}) => {
+      const guardianHandle = (prefs as {guardianHandle?: string} | null)?.guardianHandle
+      if (guardianHandle) {
+        // Guardian mode — forward request to guardian, don't open modal
+        console.log(`[app] guardian mode: connection request from ${data.fromHandle} forwarded to guardian @${guardianHandle}`)
+        // Phase 5: relay forwarding stubbed — full GUARDIAN_REQUEST protocol is post-MVP
+        return
+      }
       setIncomingRequests(prev => {
         if (prev.some(r => r.requestId === data.requestId)) return prev
         setShowConnect(true)
@@ -149,7 +148,7 @@ export function App() {
           </div>
         )}
         {view === 'threads'  && <ThreadsView initialThreadHandle={pendingThreadHandle || undefined} onThreadOpened={() => setPendingThreadHandle(null)} />}
-        {view === 'contacts' && <PlaceholderView name="Contacts — Phase 5" />}
+        {view === 'contacts' && <ContactsView onOpenThread={(id) => { setPendingThreadHandle(id); setView('threads') }} />}
         {view === 'profile'  && <ProfileView />}
       </main>
 
@@ -175,11 +174,11 @@ export function App() {
             className={`flex-1 flex flex-col items-center gap-1 py-3 text-xs transition ${
               view === id
                 ? 'text-indigo-400'
-                : phase <= 3
+                : phase <= 4
                   ? 'text-gray-500 hover:text-gray-300'
                   : 'text-gray-700 cursor-not-allowed'
             }`}
-            disabled={phase > 3}
+            disabled={phase > 4}
             title={phase > 3 ? `Phase ${phase}` : label}
           >
             <span className="text-base leading-none">{icon}</span>

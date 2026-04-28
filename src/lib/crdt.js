@@ -60,7 +60,15 @@ export function getDiffUpdate(remoteStateVector) {
  * @param {Uint8Array} update
  */
 export function applyRemoteUpdate(update) {
+  // Save local identity before merge — profile must never be overwritten by a peer
+  const identity = profileMap.get('identity');
+  const preferences = profileMap.get('preferences');
+
   Y.applyUpdate(doc, update);
+
+  // Re-assert local identity after merge (Y.js last-write-wins — we always win our own profile)
+  if (identity) profileMap.set('identity', identity);
+  if (preferences) profileMap.set('preferences', preferences);
 }
 
 // ─── Thread-scoped sync ───────────────────────────────────────────────────────

@@ -7,6 +7,7 @@
 
 import { useIdentity, usePreferences, useTrustGraph, usePingHistory, useChannelMemberships } from '../../hooks/useYjs'
 import { exportLocalState } from '../../store/ydoc'
+import GuardianSettings from '../Contacts/GuardianSettings'
 
 export function ProfileView() {
   const identity = useIdentity()
@@ -114,6 +115,9 @@ export function ProfileView() {
           </span>
         </div>
       </div>
+
+      {/* Guardian mode */}
+      <GuardianSettings />
 
       {/* Export */}
       <button

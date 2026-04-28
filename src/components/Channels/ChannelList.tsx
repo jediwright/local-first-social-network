@@ -8,7 +8,7 @@
 
 import { useState } from 'react'
 import { joinChannel, leaveChannel, upsertChannel } from '../../store/ydoc'
-import { useChannelMemberships, useChannels, useAllChannelPings } from '../../hooks/useYjs'
+import { useChannelMemberships, useChannels, useAllChannelPings, usePreferences } from '../../hooks/useYjs'
 
 // Suggested starter channels — in Phase 4, these come from relay discovery
 const SUGGESTED_CHANNELS = [
@@ -44,6 +44,8 @@ export function ChannelList({ selectedChannelId, onSelectChannel }: ChannelListP
   const channels = useChannels()
   const allPings = useAllChannelPings()
   const [showDiscover, setShowDiscover] = useState(false)
+  const prefs = usePreferences()
+  const hasGuardian = !!(prefs?.guardianHandle)
   const [customChannel, setCustomChannel] = useState('')
 
   const joinedIds = new Set(memberships.map(m => m.channelId))
@@ -144,7 +146,13 @@ export function ChannelList({ selectedChannelId, onSelectChannel }: ChannelListP
 
       {/* Discover / join */}
       <div className="border-t border-gray-800 p-3">
-        {!showDiscover ? (
+        {hasGuardian ? (
+          <p className="text-xs text-gray-600 text-center py-2">
+            Channel discovery is managed by your guardian
+          </p>
+        ) : (
+          <div>
+          {!showDiscover ? (
           <button
             onClick={() => setShowDiscover(true)}
             className="w-full max-w-sm mx-auto bg-indigo-600 hover:bg-indigo-500 text-white text-sm py-3 rounded-xl transition font-medium flex items-center justify-center gap-1"
@@ -199,6 +207,8 @@ export function ChannelList({ selectedChannelId, onSelectChannel }: ChannelListP
             >
               Cancel
             </button>
+          </div>
+        )}
           </div>
         )}
       </div>

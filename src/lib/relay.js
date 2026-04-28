@@ -13,7 +13,8 @@
  *   CRDT messages (CRDT_SYNC_OFFER, CRDT_SYNC_ANSWER) → forwarded to crdt.js
  */
 
-import { profileMap } from '../store/ydoc';
+import * as Y from 'yjs';
+import { profileMap, doc } from '../store/ydoc';
 import {
   initiateSyncHandshake,
   respondToSyncOffer,
@@ -41,6 +42,8 @@ let socket = null;
 let reconnectTimer = null;
 let pingTimer = null;
 let reconnectDelay = RECONNECT_DELAY_MS;
+let connectedPeerHandle = null;  // handle of current established peer
+let docUpdateListener = null;    // cleanup ref for doc.on('update')
 
 /**
  * Pending outbound connection requests awaiting accept/reject.
@@ -335,6 +338,7 @@ function handleMessage(msg) {
           console.log(`[relay-client] CRDT sync initiated with ${msg.byHandle}`);
         } else {
           // Trust tier insufficient — accept but skip sync
+          connectedPeerHandle = msg.byHandle;
           setState('established');
         }
       } else {
@@ -372,6 +376,33 @@ function handleMessage(msg) {
   }
 }
 
+// ─── Real-time doc update forwarding ─────────────────────────────────────────
+/**
+ * After a peer connection is established, subscribe to Y.js doc updates
+ * and forward them to the connected peer via the relay.
+ * Guard: only forward when state is 'established' to avoid broadcasting
+ * every local mutation during sync or before connection.
+ */
+function wireDocUpdateForwarding(peerHandle) {
+  // Clean up any previous listener
+  if (docUpdateListener) {
+    doc.off('update', docUpdateListener);
+    docUpdateListener = null;
+  }
+  docUpdateListener = (update, origin) => {
+    // Don't echo back updates that originated from the relay (infinite loop guard)
+    if (origin === 'relay') return;
+    if (getState() !== 'established') return;
+    sendMessage({
+      type: 'CRDT_UPDATE',
+      toHandle: peerHandle,
+      update: Array.from(update), // Uint8Array → serializable array
+    });
+  };
+  doc.on('update', docUpdateListener);
+  console.log(`[relay-client] doc update forwarding wired to ${peerHandle}`);
+}
+
 // ─── CRDT message handling ────────────────────────────────────────────────────
 
 function handleCrdtMessage(msg) {
@@ -392,9 +423,17 @@ function handleCrdtMessage(msg) {
       const complete = completeSyncHandshake(fromHandle, msg.answer, msg.requestId);
       if (complete) {
         sendMessage(complete); // SYNC_COMPLETE → relay exits sync path
+        connectedPeerHandle = fromHandle;
+        wireDocUpdateForwarding(fromHandle);
         setState('established');
         console.log(`[relay-client] CRDT sync complete with ${fromHandle} — relay exiting sync path`);
       }
+      break;
+    }
+    case 'CRDT_UPDATE': {
+      // Peer sent a real-time Y.js update — apply it with 'relay' origin to avoid echo
+      const update = new Uint8Array(msg.update);
+      Y.applyUpdate(doc, update, 'relay');
       break;
     }
   }

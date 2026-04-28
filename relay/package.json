@@ -13,5 +13,8 @@
   },
   "dependencies": {
     "ws": "^8.17.0"
+  },
+  "devDependencies": {
+    "@flydotio/dockerfile": "^0.7.10"
   }
 }

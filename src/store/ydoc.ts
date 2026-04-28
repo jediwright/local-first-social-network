@@ -35,6 +35,7 @@ export interface Preferences {
   defaultPingType: PingType
   notificationsEnabled: boolean
   discoverable: boolean
+  guardianHandle?: string
 }
 
 export interface TrustEntry {

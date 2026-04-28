@@ -61,6 +61,7 @@ wss.on('connection', (socket, req) => {
       case 'SYNC_COMPLETE':      syncComplete(socket, msg); break;
       case 'CRDT_SYNC_OFFER':    relayToHandle(socket, msg, msg.toHandle); break;
       case 'CRDT_SYNC_ANSWER':   relayToHandle(socket, msg, msg.toHandle); break;
+      case 'CRDT_UPDATE':         relayToHandle(socket, msg, msg.toHandle); break;
       case 'PING':               send(socket, { type: 'PONG' }); break;
       default: sendError(socket, 'UNKNOWN_TYPE', `Unknown message type: ${msg.type}`);
     }
