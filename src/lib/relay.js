@@ -431,8 +431,12 @@ function wireDocUpdateForwarding(peerHandle) {
 function handleCrdtMessage(msg) {
   switch (msg.type) {
     case 'CRDT_SYNC_OFFER': {
-      // Peer is initiating sync with us — build and send answer
+      // Peer is initiating sync with us — ensure they're in trust graph before eligibility check
       const offerFrom = (msg.fromHandle || msg.toHandle).replace(/^@/, '').toLowerCase().trim();
+      const trustGraph = profileMap.get('trust_graph');
+      if (offerFrom && (!trustGraph || !trustGraph.get(offerFrom))) {
+        addContact(offerFrom, 'contact');
+      }
       const answer = respondToSyncOffer(offerFrom, msg.offer);
       if (answer) {
         sendMessage(answer);
