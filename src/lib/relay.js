@@ -383,6 +383,14 @@ function handleMessage(msg) {
       break;
 
       case 'PONG': break; // keepalive response
+
+    case 'CRDT_UPDATE': {
+      // Peer sent a real-time Y.js update — apply it with 'relay' origin to avoid echo
+      const update = new Uint8Array(msg.update);
+      Y.applyUpdate(doc, update, 'relay');
+      break;
+    }
+
     default:
       console.warn(`[relay-client] unhandled message type: ${msg.type}`);
   }
@@ -442,12 +450,7 @@ function handleCrdtMessage(msg) {
       }
       break;
     }
-    case 'CRDT_UPDATE': {
-      // Peer sent a real-time Y.js update — apply it with 'relay' origin to avoid echo
-      const update = new Uint8Array(msg.update);
-      Y.applyUpdate(doc, update, 'relay');
-      break;
-    }
+
   }
 }
 
