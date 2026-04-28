@@ -344,7 +344,8 @@ function handleMessage(msg) {
       if (msg.syncSignal) {
         setState('syncing');
         const normalizedPeer = msg.byHandle.replace(/^@/, '').toLowerCase().trim();
-        const offer = initiateSyncHandshake(normalizedPeer);
+        const relayPeer = '@' + normalizedPeer;
+        const offer = initiateSyncHandshake(relayPeer);
         if (offer) {
           sendMessage(offer);
           console.log(`[relay-client] CRDT sync initiated with ${msg.byHandle}`);
