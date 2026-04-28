@@ -290,8 +290,8 @@ function handleMessage(msg) {
       console.warn(`[relay-client] handle taken: ${msg.handle} — retrying in 3s`);
       setTimeout(() => {
         if (socket?.readyState === WebSocket.OPEN) {
-          const profile = getState().profile;
-          const h = profile?.handle;
+          const identity = profileMap?.get('identity');
+          const h = identity?.handle;
           if (h) {
             const normalized = (h.startsWith('@') ? h : `@${h}`).toLowerCase();
             socket.send(JSON.stringify({ type: 'REGISTER_HANDLE', handle: normalized }));
