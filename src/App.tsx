@@ -149,7 +149,7 @@ export function App() {
       {connectionToast && (
         <ConnectionToast
           handle={connectionToast}
-          onStartThread={(handle) => {
+          onStartThread={(_handle) => {
             setConnectionToast(null)
             setView('threads')
           }}
