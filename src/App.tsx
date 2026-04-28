@@ -65,6 +65,7 @@ export function App() {
   const [showConnect, setShowConnect] = useState(false)
   const [incomingRequests, setIncomingRequests] = useState<Array<{requestId: string, fromHandle: string}>>([])
   const [connectionToast, setConnectionToast] = useState<string | null>(null)
+  const [pendingThreadHandle, setPendingThreadHandle] = useState<string | null>(null)
 
   // Connect to relay once profile is ready
   useEffect(() => {
@@ -140,7 +141,7 @@ export function App() {
             />
           </div>
         )}
-        {view === 'threads'  && <ThreadsView />}
+        {view === 'threads'  && <ThreadsView initialThreadHandle={pendingThreadHandle || undefined} onThreadOpened={() => setPendingThreadHandle(null)} />}
         {view === 'contacts' && <PlaceholderView name="Contacts — Phase 5" />}
         {view === 'profile'  && <ProfileView />}
       </main>
@@ -149,8 +150,9 @@ export function App() {
       {connectionToast && (
         <ConnectionToast
           handle={connectionToast}
-          onStartThread={(_handle) => {
+          onStartThread={(handle) => {
             setConnectionToast(null)
+            setPendingThreadHandle(handle)
             setView('threads')
           }}
           onDismiss={() => setConnectionToast(null)}

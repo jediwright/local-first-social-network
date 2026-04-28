@@ -60,8 +60,10 @@ function IncomingRequestCard({
     setStatus('accepting');
     setTrustTier(request.fromHandle, selectedTier);
     acceptConnectionRequest(request.requestId, request.fromHandle);
-    onConnected?.(request.fromHandle);
-    setTimeout(() => onDismiss(request.requestId), 800);
+    setTimeout(() => {
+      onDismiss(request.requestId);
+      onConnected?.(request.fromHandle);
+    }, 600);
   }
 
   function handleReject() {

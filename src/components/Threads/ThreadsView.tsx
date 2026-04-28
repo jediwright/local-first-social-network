@@ -93,8 +93,9 @@ export function ThreadsView() {
       {/* New thread modal */}
       {showNewThread && (
         <NewThreadModal
-          onOpen={handleNewThread}
-          onClose={() => setShowNewThread(false)}
+          onOpen={(handle) => { handleNewThread(handle); onThreadOpened?.() }}
+          onClose={() => { setShowNewThread(false); onThreadOpened?.() }}
+          initialHandle={initialThreadHandle || ''}
         />
       )}
     </div>
