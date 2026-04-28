@@ -326,7 +326,7 @@ function handleMessage(msg) {
       if (msg.byHandle) {
         const trustGraph = profileMap.get('trust_graph');
         if (trustGraph && !trustGraph.get(msg.byHandle)) {
-          trustGraph.set(msg.byHandle, { tier: 'contact', connectedAt: new Date().toISOString(), syncStatus: 'pending' });
+          trustGraph.set(msg.byHandle.replace(/^@/, ''), { tier: 'contact', connectedAt: new Date().toISOString(), syncStatus: 'pending' });
         }
       }
       // If relay signals sync should begin, initiate CRDT handshake

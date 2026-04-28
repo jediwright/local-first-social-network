@@ -34,6 +34,7 @@ import {
   getOrCreateChannelPings,
   getOrCreateThread,
   pruneAllExpiredPings,
+  pruneMalformedThreadKeys,
   type Identity,
   type Preferences,
   type TrustEntry,
@@ -337,6 +338,7 @@ export function useDocumentReady(): { ready: boolean } {
   useEffect(() => {
     persistenceReady.then(() => {
       pruneAllExpiredPings()
+      pruneMalformedThreadKeys()
       setReady(true)
     })
   }, [])

@@ -359,6 +359,26 @@ export function canonicalThreadId(handleA: string, handleB: string): string {
   return [a, b].sort().join(':')
 }
 
+/**
+ * Prune thread keys that contain @ prefixes or more than one colon segment.
+ * These are artifacts from the Phase 4/5 @ normalization bug.
+ * Safe to run on every load — only removes keys that don't match canonical format.
+ */
+export function pruneMalformedThreadKeys(): void {
+  const keysToDelete: string[] = []
+  threadsMap.forEach((_arr, key) => {
+    // Valid canonical key: two lowercase handles joined by exactly one colon, no @ signs
+    const valid = /^[a-z0-9_.]+:[a-z0-9_.]+$/.test(key)
+    if (!valid) keysToDelete.push(key)
+  })
+  if (keysToDelete.length > 0) {
+    doc.transact(() => {
+      keysToDelete.forEach(k => threadsMap.delete(k))
+    })
+    console.log(`[ydoc] pruned ${keysToDelete.length} malformed thread key(s):`, keysToDelete)
+  }
+}
+
 export function getOrCreateThread(contactId: string): Y.Array<ThreadMessage> {
   const myHandle = (profileMap.get('identity') as any)?.handle || ''
   const key = myHandle ? canonicalThreadId(myHandle, contactId) : contactId
