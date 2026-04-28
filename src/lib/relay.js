@@ -322,6 +322,7 @@ function handleMessage(msg) {
       // Set trust tier on initiator side before CRDT sync
       if (msg.byHandle) {
         const trustGraph = profileMap.get('trust_graph');
+        if (trustGraph && !trustGraph.get(msg.byHandle)) {
           trustGraph.set(msg.byHandle, { tier: 'contact', connectedAt: new Date().toISOString(), syncStatus: 'pending' });
         }
       }
