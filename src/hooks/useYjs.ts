@@ -146,11 +146,9 @@ export function useTrustGraph(): Map<string, TrustEntry> {
   const [contacts, setContacts] = useState<Map<string, TrustEntry>>(new Map())
 
   useEffect(() => {
-    persistenceReady.then(() => {
-      const m = new Map<string, TrustEntry>()
-      trustGraphMap.forEach((v, k) => m.set(k, v))
-      setContacts(m)
-    })
+    const m = new Map<string, TrustEntry>()
+    trustGraphMap.forEach((v, k) => m.set(k, v))
+    setContacts(m)
     return attachMapObserver(trustGraphMap as Y.Map<TrustEntry>, setContacts)
   }, [])
 
