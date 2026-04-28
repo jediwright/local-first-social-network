@@ -86,7 +86,7 @@ export function App() {
     const unsubAccepted = on('connection_accepted', (data: {byHandle: string}) => {
       if (data.byHandle) {
         setShowConnect(false)
-        setTimeout(() => setConnectionToast(data.byHandle.replace(/^@/, '')), 400)
+        setTimeout(() => setConnectionToast(prev => prev ?? data.byHandle.replace(/^@/, '')), 400)
       }
     })
     return () => { unsubRequest(); unsubAccepted() }
