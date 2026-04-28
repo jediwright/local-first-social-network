@@ -94,7 +94,8 @@ export function sendConnectionRequest(toHandle) {
     }
 
     const requestId = generateRequestId();
-    const myHandle = getMyHandle();
+    const rawHandle = getMyHandle();
+    const myHandle = rawHandle && !rawHandle.startsWith("@") ? `@${rawHandle}` : rawHandle;
 
     if (!myHandle) {
       reject(new Error('No registered handle — complete onboarding first'));
@@ -126,7 +127,8 @@ export function sendConnectionRequest(toHandle) {
  * @param {string} fromHandle
  */
 export function acceptConnectionRequest(requestId, fromHandle) {
-  const myHandle = getMyHandle();
+  const raw = getMyHandle();
+  const myHandle = raw && !raw.startsWith("@") ? `@${raw}` : raw;
   if (!myHandle) return;
 
   sendMessage({
@@ -143,7 +145,8 @@ export function acceptConnectionRequest(requestId, fromHandle) {
  * @param {string} fromHandle
  */
 export function rejectConnectionRequest(requestId, fromHandle) {
-  const myHandle = getMyHandle();
+  const raw = getMyHandle();
+  const myHandle = raw && !raw.startsWith("@") ? `@${raw}` : raw;
   if (!myHandle) return;
 
   sendMessage({
