@@ -352,11 +352,19 @@ export function pruneAllExpiredPings(): void {
 
 // ─── Threads map mutations ────────────────────────────────────────────────────
 
+export function canonicalThreadId(handleA: string, handleB: string): string {
+  const a = handleA.toLowerCase().replace(/^@/, '')
+  const b = handleB.toLowerCase().replace(/^@/, '')
+  return [a, b].sort().join(':')
+}
+
 export function getOrCreateThread(contactId: string): Y.Array<ThreadMessage> {
-  let arr = threadsMap.get(contactId)
+  const myHandle = (profileMap.get('identity') as any)?.handle || ''
+  const key = myHandle ? canonicalThreadId(myHandle, contactId) : contactId
+  let arr = threadsMap.get(key)
   if (!(arr instanceof Y.Array)) {
     arr = new Y.Array<ThreadMessage>()
-    threadsMap.set(contactId, arr)
+    threadsMap.set(key, arr)
   }
   return arr
 }
