@@ -21,6 +21,7 @@ import OfflineBanner from './components/shared/OfflineBanner'
 import { connect as relayConnect, on } from './lib/relay'
 import OnlineStatus from './components/shared/OnlineStatus'
 import ConnectionRequest from './components/Connection/ConnectionRequest'
+import ConnectionToast from './components/shared/ConnectionToast'
 
 type View = 'pings' | 'threads' | 'channels' | 'contacts' | 'profile'
 
@@ -63,6 +64,7 @@ export function App() {
   const [selectedChannel, setSelectedChannel] = useState('general')
   const [showConnect, setShowConnect] = useState(false)
   const [incomingRequests, setIncomingRequests] = useState<Array<{requestId: string, fromHandle: string}>>([])
+  const [connectionToast, setConnectionToast] = useState<string | null>(null)
 
   // Connect to relay once profile is ready
   useEffect(() => {
@@ -123,7 +125,7 @@ export function App() {
       {/* Connect modal */}
       {showConnect && (
         <div className="absolute top-14 right-4 z-50 w-80">
-          <ConnectionRequest onConnected={() => setShowConnect(false)} incomingRequests={incomingRequests} onDismissRequest={(id: string) => setIncomingRequests(prev => prev.filter(r => r.requestId !== id))} />
+          <ConnectionRequest onConnected={(handle) => { setShowConnect(false); setConnectionToast(handle) }} incomingRequests={incomingRequests} onDismissRequest={(id: string) => setIncomingRequests(prev => prev.filter(r => r.requestId !== id))} />
         </div>
       )}
 
@@ -142,6 +144,18 @@ export function App() {
         {view === 'contacts' && <PlaceholderView name="Contacts — Phase 5" />}
         {view === 'profile'  && <ProfileView />}
       </main>
+
+      {/* Connection toast */}
+      {connectionToast && (
+        <ConnectionToast
+          handle={connectionToast}
+          onStartThread={(handle) => {
+            setConnectionToast(null)
+            setView('threads')
+          }}
+          onDismiss={() => setConnectionToast(null)}
+        />
+      )}
 
       {/* Bottom nav */}
       <nav className="border-t border-gray-800 flex">

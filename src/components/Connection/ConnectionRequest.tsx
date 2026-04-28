@@ -47,9 +47,11 @@ function setTrustTier(handle: string, tier: TrustTier) {
 function IncomingRequestCard({
   request,
   onDismiss,
+  onConnected,
 }: {
   request: IncomingRequest;
   onDismiss: (requestId: string) => void;
+  onConnected?: (handle: string) => void;
 }) {
   const [selectedTier, setSelectedTier] = useState<TrustTier>('contact');
   const [status, setStatus] = useState<'pending' | 'accepting' | 'rejecting' | 'done'>('pending');
@@ -58,6 +60,7 @@ function IncomingRequestCard({
     setStatus('accepting');
     setTrustTier(request.fromHandle, selectedTier);
     acceptConnectionRequest(request.requestId, request.fromHandle);
+    onConnected?.(request.fromHandle);
     setTimeout(() => onDismiss(request.requestId), 800);
   }
 
@@ -294,7 +297,7 @@ export default function ConnectionRequest({
     <div className="space-y-3">
       {/* Incoming requests — shown at top */}
       {incomingRequests.map((req) => (
-        <IncomingRequestCard key={req.requestId} request={req} onDismiss={dismissIncoming} />
+        <IncomingRequestCard key={req.requestId} request={req} onDismiss={dismissIncoming} onConnected={onConnected} />
       ))}
 
       {/* Outbound request panel */}
