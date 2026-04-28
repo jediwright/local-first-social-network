@@ -13,7 +13,7 @@ import {
   sendConnectionRequest,
   getConnectionState,
 } from '../../lib/relay';
-import { profileMap } from '../../store/ydoc';
+import { addContact } from '../../store/ydoc';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -33,13 +33,7 @@ interface OutboundState {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function setTrustTier(handle: string, tier: TrustTier) {
-  const trustGraph = profileMap.get('trust_graph') as Map<string, unknown> | undefined;
-  if (!trustGraph) return;
-  trustGraph.set(handle.replace(/^@/, '').toLowerCase().trim(), {
-    tier,
-    connectedAt: new Date().toISOString(),
-    syncStatus: 'synced',
-  });
+  addContact(handle.replace(/^@/, '').toLowerCase().trim(), tier);
 }
 
 // ─── Incoming request panel ───────────────────────────────────────────────────
