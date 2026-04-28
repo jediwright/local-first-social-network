@@ -319,6 +319,12 @@ function handleMessage(msg) {
       }
       emit('connection_accepted', { requestId: msg.requestId, byHandle: msg.byHandle });
 
+      // Set trust tier on initiator side before CRDT sync
+      if (msg.byHandle) {
+        const trustGraph = profileMap.get('trust_graph');
+          trustGraph.set(msg.byHandle, { tier: 'contact', connectedAt: new Date().toISOString(), syncStatus: 'pending' });
+        }
+      }
       // If relay signals sync should begin, initiate CRDT handshake
       if (msg.syncSignal) {
         setState('syncing');
