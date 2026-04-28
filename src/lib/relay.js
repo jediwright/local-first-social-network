@@ -435,7 +435,8 @@ function handleCrdtMessage(msg) {
       const answer = respondToSyncOffer(offerFrom, msg.offer);
       if (answer) {
         sendMessage(answer);
-        wireDocUpdateForwarding(msg.fromHandle || msg.toHandle);
+        const offerSender = msg.fromHandle || msg.toHandle;
+        wireDocUpdateForwarding(offerSender.startsWith('@') ? offerSender : '@' + offerSender);
         setState('established');
         console.log(`[relay-client] CRDT sync answer sent to ${answer.toHandle}`);
       }
@@ -449,7 +450,7 @@ function handleCrdtMessage(msg) {
       if (complete) {
         sendMessage(complete); // SYNC_COMPLETE → relay exits sync path
         connectedPeerHandle = fromHandle;
-        wireDocUpdateForwarding(fromHandle);
+        wireDocUpdateForwarding('@' + fromHandle);
         setState('established');
         console.log(`[relay-client] CRDT sync complete with ${fromHandle} — relay exiting sync path`);
       }
