@@ -58,17 +58,18 @@ function IncomingRequestCard({
 
   function handleAccept() {
     setStatus('accepting');
-    setTrustTier(request.fromHandle, selectedTier);
+    const cleanHandle = request.fromHandle.replace(/^@/, '');
+    setTrustTier(cleanHandle, selectedTier);
     acceptConnectionRequest(request.requestId, request.fromHandle);
     setTimeout(() => {
       onDismiss(request.requestId);
-      onConnected?.(request.fromHandle);
+      onConnected?.(request.fromHandle.replace(/^@/, ''));
     }, 600);
   }
 
   function handleReject() {
     setStatus('rejecting');
-    rejectConnectionRequest(request.requestId, request.fromHandle);
+    rejectConnectionRequest(request.requestId, request.fromHandle.replace(/^@/, ''));
     setTimeout(() => onDismiss(request.requestId), 600);
   }
 

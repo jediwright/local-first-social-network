@@ -339,6 +339,7 @@ function handleMessage(msg) {
         } else {
           // Trust tier insufficient — accept but skip sync
           connectedPeerHandle = msg.byHandle;
+          wireDocUpdateForwarding(msg.byHandle);
           setState('established');
         }
       } else {

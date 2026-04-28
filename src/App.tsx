@@ -86,7 +86,7 @@ export function App() {
     const unsubAccepted = on('connection_accepted', (data: {byHandle: string}) => {
       if (data.byHandle) {
         setShowConnect(false)
-        setConnectionToast(data.byHandle)
+        setConnectionToast(data.byHandle.replace(/^@/, ''))
       }
     })
     return () => { unsubRequest(); unsubAccepted() }
