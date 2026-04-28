@@ -22,9 +22,10 @@ const SYNC_ELIGIBLE_TIERS = new Set(['close', 'contact']);
  * @returns {boolean}
  */
 export function isSyncEligible(contactId) {
+  const normalized = contactId.replace(/^@/, '').toLowerCase().trim();
   const trustGraph = profileMap.get('trust_graph');
   if (!trustGraph) return false;
-  const entry = trustGraph.get(contactId);
+  const entry = trustGraph.get(normalized);
   if (!entry) return false;
   return SYNC_ELIGIBLE_TIERS.has(entry.tier);
 }
