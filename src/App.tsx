@@ -20,6 +20,7 @@ import { ThreadsView } from './components/Threads/ThreadsView'
 import OfflineBanner from './components/shared/OfflineBanner'
 import { connect as relayConnect } from './lib/relay'
 import OnlineStatus from './components/shared/OnlineStatus'
+import ConnectionRequest from './components/Connection/ConnectionRequest'
 
 type View = 'pings' | 'threads' | 'channels' | 'contacts' | 'profile'
 
@@ -60,6 +61,7 @@ export function App() {
   const [view, setView] = useState<View>('pings')
   const [onboarded, setOnboarded] = useState(false)
   const [selectedChannel, setSelectedChannel] = useState('general')
+  const [showConnect, setShowConnect] = useState(false)
 
   // Connect to relay once profile is ready
   useEffect(() => {
@@ -89,6 +91,9 @@ export function App() {
         {identity && (
           <div className="flex items-center gap-3">
             <OnlineStatus showLabel={false} />
+            <button
+              className="text-xs text-indigo-400 border border-indigo-800 rounded-lg px-2 py-1 hover:bg-indigo-950 transition"
+            >⊕ Connect</button>
             <div
               className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold cursor-pointer"
               style={{ backgroundColor: identity.avatarColor }}
@@ -100,6 +105,13 @@ export function App() {
           </div>
         )}
       </header>
+
+      {/* Connect modal */}
+      {showConnect && (
+        <div className="absolute top-14 right-4 z-50 w-80">
+          <ConnectionRequest onConnected={() => setShowConnect(false)} />
+        </div>
+      )}
 
       {/* Main content */}
       <main className="flex-1 overflow-y-auto">
