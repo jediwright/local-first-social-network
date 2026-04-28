@@ -101,7 +101,7 @@ export function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-950 flex flex-col">
+    <div className="h-screen bg-gray-950 flex flex-col overflow-hidden">
       <OfflineBanner />
 
       {/* Top bar */}
@@ -166,7 +166,7 @@ export function App() {
       )}
 
       {/* Bottom nav */}
-      <nav className="border-t border-gray-800 flex">
+      <nav className="border-t border-gray-800 flex shrink-0">
         {NAV_ITEMS.map(({ id, label, icon, phase }) => (
           <button
             key={id}
