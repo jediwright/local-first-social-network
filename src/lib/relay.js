@@ -430,9 +430,12 @@ function handleCrdtMessage(msg) {
   switch (msg.type) {
     case 'CRDT_SYNC_OFFER': {
       // Peer is initiating sync with us — build and send answer
-      const answer = respondToSyncOffer(msg.fromHandle || msg.toHandle, msg.offer);
+      const offerFrom = (msg.fromHandle || msg.toHandle).replace(/^@/, '').toLowerCase().trim();
+      const answer = respondToSyncOffer(offerFrom, msg.offer);
       if (answer) {
         sendMessage(answer);
+        wireDocUpdateForwarding(msg.fromHandle || msg.toHandle);
+        setState('established');
         console.log(`[relay-client] CRDT sync answer sent to ${answer.toHandle}`);
       }
       break;
@@ -440,7 +443,7 @@ function handleCrdtMessage(msg) {
 
     case 'CRDT_SYNC_ANSWER': {
       // We initiated sync — apply the answer and signal complete
-      const fromHandle = msg.fromHandle || msg.toHandle;
+      const fromHandle = (msg.fromHandle || msg.toHandle).replace(/^@/, '').toLowerCase().trim();
       const complete = completeSyncHandshake(fromHandle, msg.answer, msg.requestId);
       if (complete) {
         sendMessage(complete); // SYNC_COMPLETE → relay exits sync path
