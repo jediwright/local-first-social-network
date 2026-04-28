@@ -6,9 +6,10 @@
  * Phase 3: messages written locally only.
  */
 
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { sendMessage, addAsset, generateId, type AssetEntry } from '../../store/ydoc'
 import { useIdentity } from '../../hooks/useYjs'
+import { on, getConnectionState, type RelayState } from '../../lib/relay'
 
 interface ThreadComposerProps {
   contactId: string
@@ -18,6 +19,10 @@ interface ThreadComposerProps {
 type AttachmentMode = null | 'link' | 'file'
 
 export function ThreadComposer({ contactId, onSent }: ThreadComposerProps) {
+  const [relayState, setRelayState] = useState<RelayState>(getConnectionState());
+  useEffect(() => {
+    return on('state_change', ({ state }: { state: RelayState }) => setRelayState(state));
+  }, []);
   const identity = useIdentity()
   const [content, setContent] = useState('')
   const [attachMode, setAttachMode] = useState<AttachmentMode>(null)
@@ -154,7 +159,7 @@ export function ThreadComposer({ contactId, onSent }: ThreadComposerProps) {
       </div>
 
       <p className="text-center text-gray-700 text-xs pb-2">
-        Stored locally · syncs on connection
+        {relayState === 'established' ? 'Live · delivered instantly' : 'Stored locally · syncs on connection'}
       </p>
     </div>
   )
