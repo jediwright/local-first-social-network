@@ -1,35 +1,32 @@
-# fly.toml — local-first-social-network relay
-# Deploys the stateless WebSocket relay to Fly.io.
-# Single small instance. Crash and restart loses nothing — all state is client-side.
+# fly.toml app configuration file generated for local-first-social-relay on 2026-04-27T23:45:06Z
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
 
-app = "local-first-social-relay"
-primary_region = "iad"  # US-East — change to match your user base
+app = 'local-first-social-relay'
+primary_region = 'iad'
 
 [build]
-  # Node 20 LTS
-  [build.args]
-    NODE_VERSION = "20"
 
 [env]
-  PORT = "8080"
-  NODE_ENV = "production"
+  NODE_ENV = 'production'
+  PORT = '8080'
 
 [http_service]
   internal_port = 8080
   force_https = true
-  auto_stop_machines = false   # WebSocket relay must stay alive
+  auto_stop_machines = 'off'
   auto_start_machines = true
   min_machines_running = 1
 
-  # Health check — server responds to GET /health with 200
   [[http_service.checks]]
-    grace_period = "10s"
-    interval = "30s"
-    method = "GET"
-    path = "/health"
-    protocol = "http"
-    timeout = "5s"
+    interval = '30s'
+    timeout = '5s'
+    grace_period = '10s'
+    method = 'GET'
+    path = '/health'
+    protocol = 'http'
 
 [[vm]]
-  size = "shared-cpu-1x"
-  memory = "256mb"
+  size = 'shared-cpu-1x'
+  memory = '256mb'
