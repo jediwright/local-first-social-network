@@ -343,7 +343,8 @@ function handleMessage(msg) {
       // If relay signals sync should begin, initiate CRDT handshake
       if (msg.syncSignal) {
         setState('syncing');
-        const offer = initiateSyncHandshake(msg.byHandle);
+        const normalizedPeer = msg.byHandle.replace(/^@/, '').toLowerCase().trim();
+        const offer = initiateSyncHandshake(normalizedPeer);
         if (offer) {
           sendMessage(offer);
           console.log(`[relay-client] CRDT sync initiated with ${msg.byHandle}`);
