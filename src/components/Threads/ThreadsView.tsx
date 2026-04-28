@@ -19,9 +19,9 @@ import { NewThreadModal } from './NewThreadModal'
 
 type ThreadTab = 'threads' | 'assets'
 
-export function ThreadsView() {
+export function ThreadsView({ initialThreadHandle, onThreadOpened }: { initialThreadHandle?: string, onThreadOpened?: () => void } = {}) {
   const [selectedContact, setSelectedContact] = useState<string | null>(null)
-  const [showNewThread, setShowNewThread] = useState(false)
+  const [showNewThread, setShowNewThread] = useState(!!initialThreadHandle)
   const [tab, setTab] = useState<ThreadTab>('threads')
 
   const handleSelectThread = (contactId: string) => {
@@ -93,7 +93,7 @@ export function ThreadsView() {
       {/* New thread modal */}
       {showNewThread && (
         <NewThreadModal
-          onOpen={(handle) => { handleNewThread(handle); onThreadOpened?.() }}
+          onOpen={(h) => { handleNewThread(h); onThreadOpened?.() }}
           onClose={() => { setShowNewThread(false); onThreadOpened?.() }}
           initialHandle={initialThreadHandle || ''}
         />

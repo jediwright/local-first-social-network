@@ -13,13 +13,14 @@ import { getOrCreateThread } from '../../store/ydoc'
 interface NewThreadModalProps {
   onOpen: (contactId: string) => void
   onClose: () => void
+  initialHandle?: string
 }
 
 function sanitizeHandle(raw: string): string {
   return raw.toLowerCase().replace(/^@/, '').replace(/[^a-z0-9_.]/g, '').slice(0, 30)
 }
 
-export function NewThreadModal({ onOpen, onClose }: NewThreadModalProps) {
+export function NewThreadModal({ onOpen, onClose, initialHandle = '' }: NewThreadModalProps) {
   const [handle, setHandle] = useState(initialHandle)
   const [error, setError] = useState('')
 
