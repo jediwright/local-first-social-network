@@ -154,7 +154,7 @@ export function ThreadComposer({ contactId, onSent }: ThreadComposerProps) {
       </div>
 
       <p className="text-center text-gray-700 text-xs pb-2">
-        Stored locally · syncs in Phase 4
+        Stored locally · syncs on connection
       </p>
     </div>
   )
