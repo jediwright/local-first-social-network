@@ -287,7 +287,18 @@ function handleMessage(msg) {
 
     case 'HANDLE_TAKEN':
       emit('handle_taken', { handle: msg.handle });
-      console.warn(`[relay-client] handle taken: ${msg.handle}`);
+      console.warn(`[relay-client] handle taken: ${msg.handle} — retrying in 3s`);
+      setTimeout(() => {
+        if (socket?.readyState === WebSocket.OPEN) {
+          const profile = getState().profile;
+          const h = profile?.handle;
+          if (h) {
+            const normalized = (h.startsWith('@') ? h : `@${h}`).toLowerCase();
+            socket.send(JSON.stringify({ type: 'REGISTER_HANDLE', handle: normalized }));
+            console.log(`[relay-client] retrying handle registration: ${normalized}`);
+          }
+        }
+      }, 3000);
       break;
 
     case 'CONNECTION_REQUEST_ROUTED':

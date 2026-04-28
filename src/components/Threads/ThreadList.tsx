@@ -45,13 +45,17 @@ export function ThreadList({ selectedContactId, onSelectThread, onNewThread }: T
   const allThreads = useAllThreads()
 
   const sortedThreads = useMemo(() => {
+    const myHandle = identity?.handle ?? ''
     return Array.from(allThreads.entries())
-      .map(([contactId, messages]) => ({
-        contactId,
-        messages,
-        lastMessage: getLastMessage(messages),
-        unreadCount: identity ? getUnreadCount(messages, identity.handle) : 0,
-      }))
+      .map(([canonicalKey, messages]) => {
+        const peerHandle = canonicalKey.split(':').find(h => h !== myHandle) ?? canonicalKey
+        return {
+          contactId: peerHandle,
+          messages,
+          lastMessage: getLastMessage(messages),
+          unreadCount: identity ? getUnreadCount(messages, identity.handle) : 0,
+        }
+      })
       .filter(t => t.messages.length > 0)
       .sort((a, b) => {
         const aTime = a.lastMessage?.sentAt ?? ''
