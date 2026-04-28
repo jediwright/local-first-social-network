@@ -146,6 +146,7 @@ export function useTrustGraph(): Map<string, TrustEntry> {
   const [contacts, setContacts] = useState<Map<string, TrustEntry>>(() => {
     const m = new Map<string, TrustEntry>()
     trustGraphMap.forEach((v, k) => m.set(k, v))
+    console.log('[useTrustGraph] init size:', m.size, 'keys:', [...m.keys()])
     return m
   })
 
