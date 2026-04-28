@@ -71,7 +71,7 @@ wss.on('connection', (socket, req) => {
   socket.on('error', (err) => { console.error('[relay] socket error:', err.message); cleanup(socket); });
 });
 
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`[relay] HTTP+WS listening on port ${PORT}`);
 });
 
