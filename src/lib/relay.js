@@ -14,7 +14,7 @@
  */
 
 import * as Y from 'yjs';
-import { profileMap, doc } from '../store/ydoc';
+import { profileMap, doc, addContact } from '../store/ydoc';
 import {
   initiateSyncHandshake,
   respondToSyncOffer,
@@ -335,9 +335,10 @@ function handleMessage(msg) {
 
       // Set trust tier on initiator side before CRDT sync
       if (msg.byHandle) {
+        const peerKey = msg.byHandle.replace(/^@/, '').toLowerCase().trim();
         const trustGraph = profileMap.get('trust_graph');
-        if (trustGraph && !trustGraph.get(msg.byHandle)) {
-          trustGraph.set(msg.byHandle.replace(/^@/, ''), { tier: 'contact', connectedAt: new Date().toISOString(), syncStatus: 'pending' });
+        if (!trustGraph || !trustGraph.get(peerKey)) {
+          addContact(peerKey, 'contact');
         }
       }
       // If relay signals sync should begin, initiate CRDT handshake
