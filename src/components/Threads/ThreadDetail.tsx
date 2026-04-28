@@ -85,7 +85,7 @@ interface ThreadDetailProps {
 
 export function ThreadDetail({ contactId, onBack }: ThreadDetailProps) {
   const identity = useIdentity()
-  const messages = useThread(contactId)
+  const messages = useThread(contactId).slice().sort((a, b) => a.sentAt.localeCompare(b.sentAt))
   const bottomRef = useRef<HTMLDivElement>(null)
 
   // Scroll to bottom on new messages
