@@ -161,7 +161,7 @@ export function respondToSyncOffer(fromHandle, offer) {
 
   return {
     type: 'CRDT_SYNC_ANSWER',
-    toHandle: fromHandle,
+    toHandle: (fromHandle.startsWith('@') ? fromHandle : '@' + fromHandle),
     answer,
   };
 }
