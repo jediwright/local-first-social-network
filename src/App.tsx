@@ -86,7 +86,7 @@ export function App() {
     const unsubAccepted = on('connection_accepted', (data: {byHandle: string}) => {
       if (data.byHandle) {
         setShowConnect(false)
-        setConnectionToast(data.byHandle.replace(/^@/, ''))
+        setTimeout(() => setConnectionToast(data.byHandle.replace(/^@/, '')), 400)
       }
     })
     return () => { unsubRequest(); unsubAccepted() }
@@ -132,7 +132,7 @@ export function App() {
       {/* Connect modal */}
       {showConnect && (
         <div className="absolute top-14 right-4 z-50 w-80">
-          <ConnectionRequest onConnected={(handle) => { setShowConnect(false); setConnectionToast(handle) }} incomingRequests={incomingRequests} onDismissRequest={(id: string) => setIncomingRequests(prev => prev.filter(r => r.requestId !== id))} />
+          <ConnectionRequest onConnected={() => { setShowConnect(false) }} incomingRequests={incomingRequests} onDismissRequest={(id: string) => setIncomingRequests(prev => prev.filter(r => r.requestId !== id))} />
         </div>
       )}
 
