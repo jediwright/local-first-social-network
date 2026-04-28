@@ -251,8 +251,16 @@ export function useThread(contactId: string): ThreadMessage[] {
 
   useEffect(() => {
     if (!contactId) return
-    const arr = getOrCreateThread(contactId)
-    return attachArrayObserver(arr, setMessages)
+    let cleanup = attachArrayObserver(getOrCreateThread(contactId), setMessages)
+    const mapObserver = () => {
+      cleanup()
+      cleanup = attachArrayObserver(getOrCreateThread(contactId), setMessages)
+    }
+    threadsMap.observe(mapObserver)
+    return () => {
+      cleanup()
+      threadsMap.unobserve(mapObserver)
+    }
   }, [contactId])
 
   return messages

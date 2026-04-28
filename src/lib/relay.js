@@ -389,6 +389,7 @@ function handleMessage(msg) {
 
     case 'CRDT_UPDATE': {
       // Peer sent a real-time Y.js update — apply it with 'relay' origin to avoid echo
+      console.log(`[crdt] received CRDT_UPDATE from ${msg.fromHandle}`);
       const update = new Uint8Array(msg.update);
       Y.applyUpdate(doc, update, 'relay');
       break;
@@ -416,6 +417,7 @@ function wireDocUpdateForwarding(peerHandle) {
     // Don't echo back updates that originated from the relay (infinite loop guard)
     if (origin === 'relay') return;
     if (connectionState !== 'established') return;
+    console.log(`[crdt] sending CRDT_UPDATE to ${peerHandle}`);
     sendMessage({
       type: 'CRDT_UPDATE',
       toHandle: peerHandle,
