@@ -129,7 +129,8 @@ export function applySyncAnswer(syncAnswer) {
  * @returns {{ type: 'CRDT_SYNC_OFFER', toHandle: string, offer: { stateVector: number[] } } | null}
  */
 export function initiateSyncHandshake(peerHandle) {
-  if (!isSyncEligible(peerHandle)) {
+  const normalizedHandle = peerHandle.replace(/^@/, '').toLowerCase().trim();
+  if (!isSyncEligible(normalizedHandle)) {
     console.warn(`[crdt] sync skipped — ${peerHandle} not at eligible trust tier`);
     return null;
   }
