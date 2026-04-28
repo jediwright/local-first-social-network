@@ -383,6 +383,26 @@ export function pruneMalformedTrustGraphKeys(): void {
   }
 }
 
+export function backfillTrustGraphFromThreads(): void {
+  const threadKeys = [...threadsMap.keys()]
+  let backfilled = 0
+  for (const key of threadKeys) {
+    const bare = key.replace(/^@/, '').toLowerCase().trim()
+    if (bare && !trustGraphMap.get(bare)) {
+      trustGraphMap.set(bare, {
+        tier: 'contact',
+        connectedAt: new Date().toISOString(),
+        syncStatus: 'synced',
+      })
+      backfilled++
+    }
+  }
+  if (backfilled > 0) {
+    console.log(`[ydoc] backfilled ${backfilled} trust_graph entr(ies) from thread history`)
+  }
+}
+
+
 export function pruneMalformedThreadKeys(): void {
   const keysToDelete: string[] = []
   threadsMap.forEach((_arr, key) => {

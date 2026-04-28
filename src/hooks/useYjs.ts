@@ -36,6 +36,7 @@ import {
   pruneAllExpiredPings,
   pruneMalformedThreadKeys,
   pruneMalformedTrustGraphKeys,
+  backfillTrustGraphFromThreads,
   type Identity,
   type Preferences,
   type TrustEntry,
@@ -349,6 +350,7 @@ export function useDocumentReady(): { ready: boolean } {
       pruneAllExpiredPings()
       pruneMalformedThreadKeys()
       pruneMalformedTrustGraphKeys()
+      backfillTrustGraphFromThreads()
       setReady(true)
     })
   }, [])
