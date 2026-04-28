@@ -6,9 +6,8 @@
  * Trust tier is assigned on accept: 'close' (full sync) or 'contact' (limited).
  */
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
-  on,
   acceptConnectionRequest,
   rejectConnectionRequest,
   sendConnectionRequest,
@@ -245,7 +244,7 @@ function OutboundRequestPanel({
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
             placeholder="handle"
             disabled={!relayOnline || outbound.status === 'sending'}
-            className="w-full rounded-xl border border-neutral-200 pl-7 pr-3 py-2 text-sm focus:outline-none focus:border-indigo-400 disabled:opacity-50"
+            className="w-full rounded-xl border border-neutral-200 pl-7 pr-3 py-2 text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:border-indigo-400 disabled:opacity-50"
           />
         </div>
         <button
@@ -280,25 +279,15 @@ function OutboundRequestPanel({
 
 export default function ConnectionRequest({
   onConnected,
+  incomingRequests = [],
+  onDismissRequest,
 }: {
   onConnected?: (handle: string) => void;
+  incomingRequests?: IncomingRequest[];
+  onDismissRequest?: (requestId: string) => void;
 }) {
-  const [incomingRequests, setIncomingRequests] = useState<IncomingRequest[]>([]);
-
-  useEffect(() => {
-    // Listen for incoming connection requests from relay
-    const unsub = on('connection_request', (data: IncomingRequest) => {
-      setIncomingRequests((prev) => {
-        // Deduplicate by requestId
-        if (prev.some((r) => r.requestId === data.requestId)) return prev;
-        return [...prev, data];
-      });
-    });
-    return unsub;
-  }, []);
-
   function dismissIncoming(requestId: string) {
-    setIncomingRequests((prev) => prev.filter((r) => r.requestId !== requestId));
+    onDismissRequest?.(requestId);
   }
 
   return (

@@ -18,7 +18,7 @@ import { PingsView } from './components/PingFeed/PingsView'
 import { ChannelList } from './components/Channels/ChannelList'
 import { ThreadsView } from './components/Threads/ThreadsView'
 import OfflineBanner from './components/shared/OfflineBanner'
-import { connect as relayConnect } from './lib/relay'
+import { connect as relayConnect, on } from './lib/relay'
 import OnlineStatus from './components/shared/OnlineStatus'
 import ConnectionRequest from './components/Connection/ConnectionRequest'
 
@@ -62,6 +62,7 @@ export function App() {
   const [onboarded, setOnboarded] = useState(false)
   const [selectedChannel, setSelectedChannel] = useState('general')
   const [showConnect, setShowConnect] = useState(false)
+  const [incomingRequests, setIncomingRequests] = useState<Array<{requestId: string, fromHandle: string}>>([])
 
   // Connect to relay once profile is ready
   useEffect(() => {
@@ -69,6 +70,18 @@ export function App() {
       relayConnect()
     }
   }, [ready, profileComplete])
+
+  // Always-on incoming connection request listener
+  useEffect(() => {
+    const unsub = on('connection_request', (data: {requestId: string, fromHandle: string}) => {
+      setIncomingRequests(prev => {
+        if (prev.some(r => r.requestId === data.requestId)) return prev
+        setShowConnect(true) // auto-open modal when request arrives
+        return [...prev, data]
+      })
+    })
+    return unsub
+  }, [])
 
   // Wait for IndexedDB to hydrate
   if (!ready) return <LoadingScreen />
@@ -110,7 +123,7 @@ export function App() {
       {/* Connect modal */}
       {showConnect && (
         <div className="absolute top-14 right-4 z-50 w-80">
-          <ConnectionRequest onConnected={() => setShowConnect(false)} />
+          <ConnectionRequest onConnected={() => setShowConnect(false)} incomingRequests={incomingRequests} onDismissRequest={(id: string) => setIncomingRequests(prev => prev.filter(r => r.requestId !== id))} />
         </div>
       )}
 
