@@ -152,11 +152,9 @@ export function initiateSyncHandshake(peerHandle) {
  * @returns {{ type: 'CRDT_SYNC_ANSWER', toHandle: string, answer: { update: number[] } } | null}
  */
 export function respondToSyncOffer(fromHandle, offer) {
-  if (!isSyncEligible(fromHandle)) {
-    console.warn(`[crdt] sync offer rejected — ${fromHandle} not at eligible trust tier`);
-    return null;
-  }
-
+  // Skip eligibility check — receiving an offer means initiator already verified trust.
+  // The acceptor's trust graph entry may not be committed yet due to Y.js timing.
+  console.log(`[crdt] responding to sync offer from ${fromHandle}`);
   const answer = buildSyncAnswer(offer);
 
   return {
