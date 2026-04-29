@@ -8,6 +8,7 @@
 
 import { useEffect, useState } from 'react'
 import type { PingObject, PingType } from '../../store/ydoc'
+import { addAsset } from '../../store/ydoc'
 
 const PING_LABELS: Record<PingType, string> = {
   'here':             'here',
@@ -73,6 +74,8 @@ export function PingBubble({ ping, isOwn = false }: PingBubbleProps) {
   const colors = PING_COLORS[ping.type]
   const ttlPercent = useTTLPercent(ping.sentAt, ping.expiresAt)
   const timeRemaining = formatTimeRemaining(ping.expiresAt)
+  const [saved, setSaved] = useState(false)
+  const [shared, setShared] = useState(false)
 
   return (
     <div className={`rounded-xl p-4 ${colors.bg} border border-white/5 space-y-3`}>
@@ -113,6 +116,45 @@ export function PingBubble({ ping, isOwn = false }: PingBubbleProps) {
           style={{ width: `${ttlPercent}%` }}
         />
       </div>
+      {/* Action bar */}
+      {ping.content && (
+        <div className="flex justify-end gap-4 pt-2 mt-1 border-t border-white/10">
+          <button
+            onClick={() => {
+              const url = ping.content?.match(/https?:\/\/\S+/)?.[0]
+              addAsset(crypto.randomUUID(), { type: 'link', url: url ?? undefined, title: ping.content ?? '', sharedInThread: '', sharedAt: new Date().toISOString() })
+              setSaved(true)
+              setTimeout(() => setSaved(false), 2000)
+            }}
+            className="text-gray-500 hover:text-gray-200 transition-colors p-1"
+            title="Save"
+          >
+            {saved
+              ? <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17 3H7a2 2 0 0 0-2 2v16l7-3 7 3V5a2 2 0 0 0-2-2z"/></svg>
+              : <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 3H7a2 2 0 0 0-2 2v16l7-3 7 3V5a2 2 0 0 0-2-2z"/></svg>
+            }
+          </button>
+          <button
+            onClick={() => {
+              const text = ping.content ?? ''
+              if (navigator.share) {
+                navigator.share({ text })
+              } else {
+                navigator.clipboard.writeText(text)
+                setShared(true)
+                setTimeout(() => setShared(false), 2000)
+              }
+            }}
+            className="text-gray-500 hover:text-gray-200 transition-colors p-1"
+            title="Share"
+          >
+            {shared
+              ? <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="20 6 9 17 4 12"/></svg>
+              : <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+            }
+          </button>
+        </div>
+      )}
     </div>
   )
 }
