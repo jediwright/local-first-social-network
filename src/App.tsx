@@ -102,11 +102,10 @@ export function App() {
     }
   }, [])
   useEffect(() => {
-    if (onboarded && pendingConnectHandle) {
+    if ((onboarded || profileComplete) && pendingConnectHandle) {
       setShowConnect(true)
-      setPendingConnectHandle(null)
     }
-  }, [onboarded, pendingConnectHandle])
+  }, [onboarded, profileComplete, pendingConnectHandle])
 
   // Wait for IndexedDB to hydrate
   if (!ready) return <LoadingScreen />
