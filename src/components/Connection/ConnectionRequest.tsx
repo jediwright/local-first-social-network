@@ -150,10 +150,12 @@ function IncomingRequestCard({
 
 function OutboundRequestPanel({
   onSuccess,
+  initialHandle = '',
 }: {
   onSuccess?: (handle: string) => void;
+  initialHandle?: string;
 }) {
-  const [handleInput, setHandleInput] = useState('');
+  const [handleInput, setHandleInput] = useState(initialHandle);
   const [outbound, setOutbound] = useState<OutboundState>({ status: 'idle', toHandle: '' });
   const relayState = getConnectionState();
   const relayOnline = relayState !== 'idle' && relayState !== 'connecting';
@@ -281,10 +283,12 @@ export default function ConnectionRequest({
   onConnected,
   incomingRequests = [],
   onDismissRequest,
+  initialHandle,
 }: {
   onConnected?: (handle: string) => void;
   incomingRequests?: IncomingRequest[];
   onDismissRequest?: (requestId: string) => void;
+  initialHandle?: string;
 }) {
   function dismissIncoming(requestId: string) {
     onDismissRequest?.(requestId);
@@ -298,7 +302,7 @@ export default function ConnectionRequest({
       ))}
 
       {/* Outbound request panel */}
-      <OutboundRequestPanel onSuccess={onConnected} />
+      <OutboundRequestPanel onSuccess={onConnected} initialHandle={initialHandle} />
     </div>
   );
 }

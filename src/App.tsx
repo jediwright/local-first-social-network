@@ -58,6 +58,7 @@ export function App() {
   const [connectionToast, setConnectionToast] = useState<string | null>(null)
   const prefs = usePreferences()
   const [pendingThreadHandle, setPendingThreadHandle] = useState<string | null>(null)
+  const [pendingConnectHandle, setPendingConnectHandle] = useState<string | null>(null)
 
   // Connect to relay once profile is ready
   useEffect(() => {
@@ -82,6 +83,7 @@ export function App() {
         return [...prev, data]
       })
     })
+    
     // Always-on connection accepted listener — show toast on initiator side
     const unsubAccepted = on('connection_accepted', (data: {byHandle: string}) => {
       if (data.byHandle) {
@@ -91,6 +93,20 @@ export function App() {
     })
     return () => { unsubRequest(); unsubAccepted() }
   }, [])
+  useEffect(() => {
+    const hash = window.location.hash
+    const match = hash.match(/^#\/connect\/(@[\w-]+)$/)
+    if (match) {
+      setPendingConnectHandle(match[1])
+      window.location.hash = ''
+    }
+  }, [])
+  useEffect(() => {
+    if (onboarded && pendingConnectHandle) {
+      setShowConnect(true)
+      setPendingConnectHandle(null)
+    }
+  }, [onboarded, pendingConnectHandle])
 
   // Wait for IndexedDB to hydrate
   if (!ready) return <LoadingScreen />
@@ -132,8 +148,8 @@ export function App() {
       {/* Connect modal */}
       {showConnect && (
         <div className="absolute top-14 right-4 z-50 w-80">
-          <ConnectionRequest onConnected={(handle) => { setShowConnect(false); setTimeout(() => setConnectionToast(prev => prev ?? handle), 400) }} incomingRequests={incomingRequests} onDismissRequest={(id: string) => setIncomingRequests(prev => prev.filter(r => r.requestId !== id))} />
-        </div>
+          <ConnectionRequest onConnected={(handle) => { setShowConnect(false); setTimeout(() => setConnectionToast(prev => prev ?? handle), 400) }} incomingRequests={incomingRequests} onDismissRequest={(id: string) => setIncomingRequests(prev => prev.filter(r => r.requestId !== id))} initialHandle={pendingConnectHandle ?? undefined} />
+      </div>
       )}
 
       {/* Main content */}

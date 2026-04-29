@@ -7,12 +7,20 @@
 
 import { useIdentity, usePreferences, useTrustGraph, usePingHistory, useChannelMemberships } from '../../hooks/useYjs'
 import { exportLocalState } from '../../store/ydoc'
+import { useState } from 'react'
 import GuardianSettings from '../Contacts/GuardianSettings'
 
 export function ProfileView() {
   const identity = useIdentity()
   const prefs = usePreferences()
   const contacts = useTrustGraph()
+  const [copied, setCopied] = useState(false)
+  function copyShareLink() {
+    const url = `${window.location.origin}/#/connect/@${identity?.handle}`
+    navigator.clipboard.writeText(url)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
   const pingHistory = usePingHistory()
   const memberships = useChannelMemberships()
 
@@ -35,7 +43,7 @@ export function ProfileView() {
   return (
     <div className="max-w-lg mx-auto p-6 space-y-6">
       {/* Identity card */}
-      <div className="bg-gray-900 rounded-xl p-6 flex items-center gap-4">
+      <div className="bg-gray-900 rounded-xl p-6 flex items-center gap-4 justify-between">
         <div
           className="w-16 h-16 rounded-full flex items-center justify-center text-white text-2xl font-bold flex-shrink-0"
           style={{ backgroundColor: identity.avatarColor }}
@@ -48,7 +56,10 @@ export function ProfileView() {
           <p className="text-gray-600 text-xs mt-1">
             Member since {new Date(identity.createdAt).toLocaleDateString()}
           </p>
-        </div>
+        </div><button onClick={copyShareLink} className="flex flex-col items-center gap-1 text-gray-500 hover:text-gray-200 transition-colors p-2 rounded-lg hover:bg-gray-800" title="Copy share link">
+          {copied ? <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="20 6 9 17 4 12"/></svg> : <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>}
+          <span className="text-xs">{copied ? 'Copied' : 'Share'}</span>
+        </button>
       </div>
 
       {/* Stats */}
