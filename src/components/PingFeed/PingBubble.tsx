@@ -91,7 +91,7 @@ export function PingBubble({ ping, isOwn = false }: PingBubbleProps) {
           {!isOwn && (
             <span className="text-gray-500 text-xs">@{ping.senderId}</span>
           )}
-          <span className="text-gray-600 text-xs">{timeRemaining}</span>
+          <span className="text-gray-600 text-xs">{timeRemaining} left</span>
         </div>
       </div>
 
