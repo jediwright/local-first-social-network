@@ -29,8 +29,8 @@ import {
   channelsMap,
   assetsMap,
   getTrustGraphMap,
-  pingHistoryArray,
-  channelMembershipsArray,
+  getPingHistoryArray,
+  getChannelMembershipsArray,
   getOrCreateChannelPings,
   getOrCreateThread,
   pruneAllExpiredPings,
@@ -161,7 +161,7 @@ export function usePingHistory(): PingHistoryEntry[] {
   const [history, setHistory] = useState<PingHistoryEntry[]>([])
 
   useEffect(() => {
-    return attachArrayObserver(pingHistoryArray, setHistory)
+    return attachArrayObserver(getPingHistoryArray(), setHistory)
   }, [])
 
   return history
@@ -173,7 +173,7 @@ export function useChannelMemberships(): ChannelMembership[] {
   const [memberships, setMemberships] = useState<ChannelMembership[]>([])
 
   useEffect(() => {
-    return attachArrayObserver(channelMembershipsArray, setMemberships)
+    return attachArrayObserver(getChannelMembershipsArray(), setMemberships)
   }, [])
 
   return memberships

@@ -142,8 +142,12 @@ function getOrCreateProfileArray(key: string): Y.Array<unknown> {
 }
 
 export function getTrustGraphMap(): Y.Map<TrustEntry> { return getOrCreateProfileMap('trust_graph') as Y.Map<TrustEntry>}
-export const pingHistoryArray     = getOrCreateProfileArray('ping_history') as Y.Array<PingHistoryEntry>
-export const channelMembershipsArray = getOrCreateProfileArray('channel_memberships') as Y.Array<ChannelMembership>
+export function getPingHistoryArray(): Y.Array<PingHistoryEntry> {
+  return getOrCreateProfileArray('ping_history') as Y.Array<PingHistoryEntry>
+}
+export function getChannelMembershipsArray(): Y.Array<ChannelMembership> {
+  return getOrCreateProfileArray('channel_memberships') as Y.Array<ChannelMembership>
+}
 
 // ─── IndexedDB persistence ──────────────────────────────────────────────────
 
@@ -239,20 +243,20 @@ export function getContacts(): Map<string, TrustEntry> {
 
 export function recordPingToHistory(entry: Omit<PingHistoryEntry, 'pingId'>): void {
   doc.transact(() => {
-    pingHistoryArray.push([{ ...entry, pingId: generateId() }])
+    getPingHistoryArray().push([{ ...entry, pingId: generateId() }])
   })
 }
 
 export function pruneExpiredPingHistory(): number {
   const now = Date.now()
   const toDelete: number[] = []
-  pingHistoryArray.forEach((entry, i) => {
+  getPingHistoryArray().forEach((entry, i) => {
     if (new Date(entry.expiresAt).getTime() < now) toDelete.push(i)
   })
   // Delete in reverse order to preserve indices
   for (let i = toDelete.length - 1; i >= 0; i--) {
     doc.transact(() => {
-      pingHistoryArray.delete(toDelete[i], 1)
+      getPingHistoryArray().delete(toDelete[i], 1)
     })
   }
   return toDelete.length
@@ -262,10 +266,10 @@ export function pruneExpiredPingHistory(): number {
 
 export function joinChannel(channelId: string): void {
   // Avoid duplicate memberships
-  const existing = channelMembershipsArray.toArray().find(m => m.channelId === channelId)
+  const existing = getChannelMembershipsArray().toArray().find(m => m.channelId === channelId)
   if (existing) return
   doc.transact(() => {
-    channelMembershipsArray.push([{
+    getChannelMembershipsArray().push([{
       channelId,
       joinedAt: new Date().toISOString(),
       lastPingAt: null,
@@ -274,20 +278,20 @@ export function joinChannel(channelId: string): void {
 }
 
 export function leaveChannel(channelId: string): void {
-  const idx = channelMembershipsArray.toArray().findIndex(m => m.channelId === channelId)
+  const idx = getChannelMembershipsArray().toArray().findIndex(m => m.channelId === channelId)
   if (idx === -1) return
   doc.transact(() => {
-    channelMembershipsArray.delete(idx, 1)
+    getChannelMembershipsArray().delete(idx, 1)
   })
 }
 
 export function updateChannelLastPing(channelId: string, at: string): void {
-  const arr = channelMembershipsArray.toArray()
+  const arr = getChannelMembershipsArray().toArray()
   const idx = arr.findIndex(m => m.channelId === channelId)
   if (idx === -1) return
   doc.transact(() => {
-    channelMembershipsArray.delete(idx, 1)
-    channelMembershipsArray.insert(idx, [{ ...arr[idx], lastPingAt: at }])
+    getChannelMembershipsArray().delete(idx, 1)
+    getChannelMembershipsArray().insert(idx, [{ ...arr[idx], lastPingAt: at }])
   })
 }
 
@@ -521,8 +525,8 @@ export function exportLocalState(): object {
       identity: getIdentity(),
       preferences: getPreferences(),
       trustGraph: Object.fromEntries(getContacts()),
-      pingHistory: pingHistoryArray.toArray(),
-      channelMemberships: channelMembershipsArray.toArray(),
+      pingHistory: getPingHistoryArray().toArray(),
+      channelMemberships: getChannelMembershipsArray().toArray(),
     },
     channels: Object.fromEntries(getAllChannels()),
     assets: Object.fromEntries(getAllAssets()),
