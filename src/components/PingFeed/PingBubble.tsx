@@ -97,7 +97,13 @@ export function PingBubble({ ping, isOwn = false }: PingBubbleProps) {
 
       {/* Content */}
       {ping.content && (
-        <p className="text-gray-200 text-sm leading-relaxed">{ping.content}</p>
+        <p className="text-gray-200 text-sm leading-relaxed">
+          {ping.content.split(/(\bhttps?:\/\/\S+)/g).map((part, i) =>
+            /^\bhttps?:\/\//.test(part)
+              ? <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="underline text-blue-300 break-all">{part}</a>
+              : part
+          )}
+        </p>
       )}
 
       {/* TTL bar */}
