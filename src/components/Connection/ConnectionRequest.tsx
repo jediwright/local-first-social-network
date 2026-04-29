@@ -6,7 +6,7 @@
  * Trust tier is assigned on accept: 'close' (full sync) or 'contact' (limited).
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   acceptConnectionRequest,
   rejectConnectionRequest,
@@ -156,6 +156,9 @@ function OutboundRequestPanel({
   initialHandle?: string;
 }) {
   const [handleInput, setHandleInput] = useState(initialHandle);
+  useEffect(() => {
+  if (initialHandle) setHandleInput(initialHandle)
+}, [initialHandle])
   const [outbound, setOutbound] = useState<OutboundState>({ status: 'idle', toHandle: '' });
   const relayState = getConnectionState();
   const relayOnline = relayState !== 'idle' && relayState !== 'connecting';
