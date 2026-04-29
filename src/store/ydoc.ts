@@ -141,7 +141,7 @@ function getOrCreateProfileArray(key: string): Y.Array<unknown> {
   return a as Y.Array<unknown>
 }
 
-export const trustGraphMap        = getOrCreateProfileMap('trust_graph')    as Y.Map<TrustEntry>
+export function getTrustGraphMap(): Y.Map<TrustEntry> { return getOrCreateProfileMap('trust_graph') as Y.Map<TrustEntry>}
 export const pingHistoryArray     = getOrCreateProfileArray('ping_history') as Y.Array<PingHistoryEntry>
 export const channelMembershipsArray = getOrCreateProfileArray('channel_memberships') as Y.Array<ChannelMembership>
 
@@ -207,7 +207,7 @@ export function defaultPreferences(): Preferences {
 
 export function addContact(contactId: string, tier: TrustTier): void {
   doc.transact(() => {
-    trustGraphMap.set(contactId, {
+    getTrustGraphMap().set(contactId, {
       tier,
       connectedAt: new Date().toISOString(),
       syncStatus: 'offline',
@@ -216,22 +216,22 @@ export function addContact(contactId: string, tier: TrustTier): void {
 }
 
 export function updateContactTier(contactId: string, tier: TrustTier): void {
-  const existing = trustGraphMap.get(contactId)
+  const existing = getTrustGraphMap().get(contactId)
   if (!existing) return
   doc.transact(() => {
-    trustGraphMap.set(contactId, { ...existing, tier })
+    getTrustGraphMap().set(contactId, { ...existing, tier })
   })
 }
 
 export function removeContact(contactId: string): void {
   doc.transact(() => {
-    trustGraphMap.delete(contactId)
+    getTrustGraphMap().delete(contactId)
   })
 }
 
 export function getContacts(): Map<string, TrustEntry> {
   const result = new Map<string, TrustEntry>()
-  trustGraphMap.forEach((v, k) => result.set(k, v))
+  getTrustGraphMap().forEach((v, k) => result.set(k, v))
   return result
 }
 
@@ -366,7 +366,7 @@ export function canonicalThreadId(handleA: string, handleB: string): string {
  */
 export function pruneMalformedTrustGraphKeys(): void {
   const keysToMigrate: Array<[string, unknown]> = []
-  trustGraphMap.forEach((entry, key) => {
+  getTrustGraphMap().forEach((entry, key) => {
     if (key.startsWith('@')) {
       keysToMigrate.push([key.replace(/^@/, ''), entry])
     }
@@ -375,8 +375,8 @@ export function pruneMalformedTrustGraphKeys(): void {
     doc.transact(() => {
       keysToMigrate.forEach(([newKey, entry]) => {
         const oldKey = '@' + newKey
-        trustGraphMap.delete(oldKey)
-        trustGraphMap.set(newKey, entry as TrustEntry)
+        getTrustGraphMap().delete(oldKey)
+        getTrustGraphMap().set(newKey, entry as TrustEntry)
       })
     })
     console.log(`[ydoc] migrated ${keysToMigrate.length} trust_graph key(s) with @ prefix`)
@@ -394,8 +394,8 @@ export function backfillTrustGraphFromThreads(): void {
     const parts = key.split(':')
     if (parts.length !== 2) continue
     const peer = parts[0] === myHandle ? parts[1] : parts[0]
-    if (peer && !trustGraphMap.get(peer)) {
-      trustGraphMap.set(peer, {
+    if (peer && !getTrustGraphMap().get(peer)) {
+      getTrustGraphMap().set(peer, {
         tier: 'contact',
         connectedAt: new Date().toISOString(),
         syncStatus: 'synced',
