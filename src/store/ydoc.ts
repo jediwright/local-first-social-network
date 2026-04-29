@@ -491,22 +491,18 @@ export function getAllChannels(): Map<string, ChannelEntry> {
 
 // ─── Assets map mutations ─────────────────────────────────────────────────────
 
-export function addAsset(assetId: string, asset: AssetEntry): void {
-  doc.transact(() => {
-    assetsMap.set(assetId, asset)
-  })
-}
-
 export function getAsset(assetId: string): AssetEntry | undefined {
   return assetsMap.get(assetId)
 }
 
-export function getAssetsByThread(contactId: string): Array<[string, AssetEntry]> {
-  const result: Array<[string, AssetEntry]> = []
-  assetsMap.forEach((v, k) => {
-    if (v.sharedInThread === contactId) result.push([k, v])
+export function addAsset(assetId: string, asset: AssetEntry): void {
+  const duplicate = Array.from(assetsMap.values()).find(a =>
+    asset.url ? a.url === asset.url : a.title === asset.title
+  )
+  if (duplicate) return
+  doc.transact(() => {
+    assetsMap.set(assetId, asset)
   })
-  return result
 }
 
 export function getAllAssets(): Array<[string, AssetEntry]> {
