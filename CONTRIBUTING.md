@@ -7,7 +7,7 @@ This file is a governed derivative of that framework. Inheritance rules: §8 of 
 
 ## What this repository is
 
-`local-first-social-network` (SocialPings) is a local-first prototype implementing the Relay Seam pattern — user-side governance of what crosses a stateless relay at the social-connection boundary. The core claim: a person should be able to connect with, sync with, and be discovered by contacts through a relay that facilitates the handshake and then exits, without the relay or the platform ever holding custody of their relationship data.
+`local-first-social-network` (Local-First Social, live at localfirst.social) is a local-first prototype implementing the Relay Seam pattern — user-side governance of what crosses a stateless relay at the social-connection boundary. The core claim: a person should be able to connect with, sync with, and be discovered by contacts through a relay that facilitates the handshake and then exits, without the relay or the platform ever holding custody of their relationship data.
 
 Governing record: `SEAM_DECISIONS.md` (S4-1 through S4-5, locked 2026-09-03 r2)  
 Public statement of design limits: `KNOWN_LIMITS.md`  
