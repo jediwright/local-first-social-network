@@ -40,11 +40,13 @@ client (Y.js / IndexedDB)
 
 **Three operations require the relay:**
 
-1. New connection request — client A signals intent to client B; relay exits after handshake
-2. Initial thread sync — CRDT merge of thread history on first connection; relay exits after sync
-3. Channel presence — lightweight discovery signal, no content stored server-side
+1. Connection request — client A signals intent to client B; relay exits after handshake
+2. Thread sync — CRDT merge of thread history between connected clients; relay exits after sync
+3. Channel discovery — lightweight interest-channel presence signal, no content stored server-side
 
 After a connection is established, the relay is no longer in the path. Your threads, pings, and contact list are yours — before they're anyone else's.
+
+Each of these three operations is a *crossing*: a moment where data leaves the device. How crossings are gated and recorded is governed by [`SEAM_DECISIONS.md`](SEAM_DECISIONS.md). Design tradeoffs that might look like gaps are explained in [`KNOWN_LIMITS.md`](KNOWN_LIMITS.md).
 
 **Stack:**
 
@@ -72,14 +74,14 @@ After a connection is established, the relay is no longer in the path. Your thre
 
 **Contacts**
 - Trust graph stored locally as Y.Map
-- Two tiers: `close` (full sync) and `contact` (limited)
+- Four trust tiers: `close`, `contact`, `discoverable`, `guardian`
 - Backfilled from thread history on load — contacts appear even without a fresh connection
 - Guardian mode for supervised accounts
 
 **Connection**
 - Share link: `localfirst.social/#/connect/@handle` — opens app pre-filled for new and existing users
 - Profile card share button copies your link to clipboard
-- CRDT sync on connection merges thread history from both sides
+- CRDT sync merges thread history from both sides
 
 ---
 
@@ -106,6 +108,8 @@ doc.getMap('assets')       → thread asset library, keyed by assetId
 
 The trust graph is a `Y.Map` nested inside `profile` — not a server-side database. Tier assignments, connection history, and sync status are all local-first state.
 
+Two further maps, `crossing_intents` and `crossing_records`, are specified in [`src/types/crossing.ts`](src/types/crossing.ts) and land with the Phase 4 governance work (see Status).
+
 ---
 
 ## Running Locally
@@ -118,19 +122,19 @@ cp .env.example .env.local
 npm run dev
 ```
 
-The relay is required for connections between users. A local relay can be run from `relay/server.js`:
+`.env.example` points at the production relay, so the app works against live infrastructure out of the box. To run your own relay for two-tab testing:
 
 ```bash
 node relay/server.js
 ```
 
-Update `VITE_RELAY_URL` in `.env.local` to point to your local relay instance.
+then set `VITE_RELAY_URL=ws://localhost:8080` in `.env.local` and restart `npm run dev`.
 
 ---
 
 ## Relay
 
-The relay is deployed on Fly.io. It is stateless — a crash and restart loses nothing because all state is client-side. The handle registry is ephemeral and rebuilt from reconnecting clients.
+The relay is deployed on Fly.io. It is stateless — a crash and restart loses nothing because all state is client-side. The handle registry is ephemeral and rebuilt from reconnecting clients (this is deliberate; see [`KNOWN_LIMITS.md`](KNOWN_LIMITS.md)).
 
 ```bash
 curl https://local-first-social-relay.fly.dev/health
@@ -141,7 +145,7 @@ curl https://local-first-social-relay.fly.dev/health
 
 ## Part of the Local-First Prototype Series
 
-This is the fourth prototype in a series exploring local-first architecture across domains:
+This is one of the prototypes in the [Local-First Series](https://github.com/jediwright/local-first-series), which explores local-first architecture across domains:
 
 | Prototype | Domain | Seam |
 |-----------|--------|------|
@@ -149,8 +153,9 @@ This is the fourth prototype in a series exploring local-first architecture acro
 | checkout-seam | Commerce | Once per purchase (Stripe) |
 | fhir-seam | Healthcare intake | Once per submission (FHIR) |
 | **Local-First Social** | **Social networking** | **Every new connection** |
+| [employment-seam](https://github.com/jediwright/employment-seam) | Employment relationship | Every transition in the employer–worker relationship |
 
-Each prototype introduced a harder version of the seam problem. Local-First Social introduces the hardest version: the seam fires on every new connection, and the thing on the far side is another user's local-first client, not a stateless server.
+Each prototype introduces a harder version of the seam problem. Local-First Social's seam fires on every new connection, and the thing on the far side is another user's local-first client, not a stateless server — the series calls this the *distributed seam*. The employment seam that followed extends the same pattern into a regulated, multi-party relationship; its formalization is documented in the [Seam Stack](https://github.com/jediwright/seam-stack).
 
 The architectural argument: a social network where the user owns the graph, the relay facilitates connection and then exits, and the platform never accumulates relationship data.
 
@@ -158,10 +163,12 @@ The architectural argument: a social network where the user owns the graph, the 
 
 ## Status
 
-Phase 5 complete as of April 2026. Real-time bidirectional messaging, CRDT sync, trust graph, channels, ping streaks, share links, and asset library all working in production.
+**Phase 5 complete as of April 2026.** Real-time bidirectional messaging, CRDT sync, trust graph, channels, ping streaks, share links, and asset library all working in production.
+
+**Phase 4 governance retrofit in progress (September 2026).** The relay and connection protocol already work; what's being added is the governance layer around them, under [`SEAM_DECISIONS.md`](SEAM_DECISIONS.md). The most visible change coming: connecting with someone will no longer automatically sync thread history. Accepting a request makes you *connected*; sharing history requires the user to set a trust level themselves. Every relay operation will also write a local record of what crossed and why.
 
 ---
 
 *Built by [J. Wright](https://systemsofthought.com) / UX Minds, LLC*
-*AI-collaborative development: Claude Sonnet 4.6 / Anthropic*
+*AI-collaborative synthesis, human authorial responsibility held by J. Wright.*
 *Methodology: [Systems of Thought](https://systemsofthought.com)*
