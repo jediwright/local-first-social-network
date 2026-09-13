@@ -17,7 +17,7 @@ Depth without breadth. Connection that doesn't require handing your
 social graph to a server that monetizes it.
 
 You don't need to understand the technical details, like CRDTs, to use it. You do need to care 
-about who owns your relationships.
+about who owns your data and relationships.
 
 ---
 
