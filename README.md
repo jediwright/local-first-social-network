@@ -6,6 +6,21 @@ A social network where you own your graph. The relay facilitates connection and 
 
 ---
 
+## Who this is for
+
+If you've felt the cost of building relationships on platforms that 
+own them — a deplatformed community, a contacts list you can't export, 
+a history that disappears when you leave — this is built for you.
+
+Local-First Social is for people who want presence without performance. 
+Depth without breadth. Connection that doesn't require handing your 
+social graph to a server that monetizes it.
+
+You don't need to understand the technical details, like CRDTs, to use it. You do need to care 
+about who owns your relationships.
+
+---
+
 ## What it is
 
 Local-First Social is a social network built on a different architectural premise: your content, connections, and history live on your device first. The server is minimal by design — it facilitates the initial handshake between two people and then gets out of the way.
@@ -155,7 +170,7 @@ This is one of the prototypes in the [Local-First Series](https://github.com/jed
 | **Local-First Social** | **Social networking** | **Every new connection** |
 | [employment-seam](https://github.com/jediwright/employment-seam) | Employment relationship | Every transition in the employer–worker relationship |
 
-Each prototype introduces a harder version of the seam problem. Local-First Social's seam fires on every new connection, and the thing on the far side is another user's local-first client, not a stateless server — the series calls this the *distributed seam*. The employment seam that followed extends the same pattern into a regulated, multi-party relationship; its formalization is documented in the [Seam Stack](https://github.com/jediwright/seam-stack).
+Each prototype introduces a harder version of the seam problem. Local-First Social's seam fires on every new connection, and the thing on the far side is another user's local-first client, not a stateless server — the series calls this the *distributed seam*. The employment seam that followed extends the same pattern into a regulated, multi-party relationship; the [Seam Stack](https://github.com/jediwright/seam-stack) documents its formalization.
 
 The architectural argument: a social network where the user owns the graph, the relay facilitates connection and then exits, and the platform never accumulates relationship data.
 
@@ -166,6 +181,21 @@ The architectural argument: a social network where the user owns the graph, the 
 **Phase 5 complete as of April 2026.** Real-time bidirectional messaging, CRDT sync, trust graph, channels, ping streaks, share links, and asset library all working in production.
 
 **Phase 4 governance retrofit in progress (September 2026).** The relay and connection protocol already work; what's being added is the governance layer around them, under [`SEAM_DECISIONS.md`](SEAM_DECISIONS.md). The most visible change coming: connecting with someone will no longer automatically sync thread history. Accepting a request makes you *connected*; sharing history requires the user to set a trust level themselves. Every relay operation will also write a local record of what crossed and why.
+
+---
+
+## Get involved
+
+Local-First Social is an open architecture, not a finished product. 
+If you're building in the local-first space, researching platform 
+alternatives, or thinking about what healthier social software looks 
+like structurally — this is worth poking at.
+
+- **Try it:** [localfirst.social](https://localfirst.social)
+- **Run it locally:** see Running Locally above
+- **Read the argument:** [Full Personhood](https://systemsofthought.com/full-personhood/) — the governance case this architecture serves
+- **Follow the build:** [Systems of Thought](https://systemsofthought.com) — where the work is documented as it happens
+- **Reach out:** [jedi@jediwright.com](mailto:jedi@jediwright.com)
 
 ---
 
