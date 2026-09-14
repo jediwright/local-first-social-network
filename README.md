@@ -102,6 +102,15 @@ Each of these three operations is a *crossing*: a moment where data leaves the d
 
 ---
 
+## Screenshots
+
+| | | |
+|---|---|---|
+| ![Pings](./localfirst.social_pings-tab.png) | ![Channels](./localfirst.social_channels-tab.png) | ![Profile](./localfirst.social_profile-tab.png) |
+| Pings — intentional signals, not a feed | Channels — opt-in, no algorithm | Profile — all data stored locally. This device owns it. |
+
+---
+
 ## Design Principles
 
 1. **Presence, not performance.** Rewards being here, not going viral.
