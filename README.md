@@ -107,7 +107,7 @@ Each of these three operations is a *crossing*: a moment where data leaves the d
 | | | |
 |---|---|---|
 | ![Pings](./localfirst.social_pings-tab.png) | ![Channels](./localfirst.social_channels-tab.png) | ![Profile](./localfirst.social_profile-tab.png) |
-| Pings — intentional signals, not a feed | Channels — opt-in, no algorithm | Profile — all data stored locally. Your device owns it. |
+| Pings — intentional signals, not a feed | Channels — opt-in, no algorithm | Profile — all data stored locally. You and your device own it. |
 
 ---
 
