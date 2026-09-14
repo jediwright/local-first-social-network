@@ -4,6 +4,8 @@ A social network where you own your graph. The relay facilitates connection and 
 
 **Live:** [localfirst.social](https://localfirst.social)
 
+Find me at [localfirst.social/#/connect/@jediwright](https://localfirst.social/#/connect/@jediwright).
+
 ---
 
 ## Who this is for
