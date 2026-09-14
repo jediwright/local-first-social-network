@@ -1,4 +1,4 @@
-# Local-First Social
+# Local-First.Social
 
 A social network where you own your graph. The relay facilitates connection and then exits. The platform never accumulates your relationship data.
 
