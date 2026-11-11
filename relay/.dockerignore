@@ -4,3 +4,4 @@
 .env
 Dockerfile
 fly.toml
+/test
