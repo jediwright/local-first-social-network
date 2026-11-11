@@ -74,6 +74,7 @@ Changes touching any of the following are **automatically Critical**, regardless
 **Relay state**
 
 - `handleRegistry` and `socketHandles` in `relay/server.js` are in-memory only (S4-4). Introducing any persistent server-side handle store is Critical and contradicts the governing record; it is a seam-decision question, not a build item.
+- `MAX_PAYLOAD_BYTES` in `relay/server.js` — the largest message the relay accepts (4 MiB, provisional, set 2026-11-10). Raising it increases the memory one message can use on the relay; lowering it shortens the thread history a full sync can carry. A change in either direction is Critical. The revisit conditions are in the code comment. Checked by hand with `node relay/test/payload-limit.mjs`, which fails on a relay with no limit.
 
 **Dependency versions**
 

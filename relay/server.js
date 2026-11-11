@@ -40,7 +40,24 @@ const server = http.createServer((req, res) => {
   }
 });
 
-const wss = new WebSocketServer({ server });
+/**
+ * Largest message the relay accepts, in bytes. A connection that sends more
+ * is closed by `ws` before the message is parsed or forwarded.
+ *
+ * The relay parses and re-serializes every message it forwards, so its memory
+ * use is a multiple of message size. This limit keeps one message from
+ * exhausting a small VM.
+ *
+ * Provisional: 4 MiB, set 2026-11-10. A full sync of roughly 3,900
+ * short thread messages fits; a longer history does not, and that sync will
+ * fail for the sender. To be revisited as use grows: when real thread
+ * histories approach that size, when the wire encoding of sync data changes,
+ * or when the VM's memory changes. The limit bounds one message; it does not
+ * bound how many connections send at once, which is a separate question.
+ */
+const MAX_PAYLOAD_BYTES = 4 * 1024 * 1024;
+
+const wss = new WebSocketServer({ server, maxPayload: MAX_PAYLOAD_BYTES });
 
 wss.on('connection', (socket, req) => {
   const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
@@ -68,11 +85,18 @@ wss.on('connection', (socket, req) => {
   });
 
   socket.on('close', () => cleanup(socket));
-  socket.on('error', (err) => { console.error('[relay] socket error:', err.message); cleanup(socket); });
+  socket.on('error', (err) => {
+    console.error('[relay] socket error:', err.message);
+    cleanup(socket);
+    // An oversize message is not read any further. Drop the connection now
+    // rather than draining the rest of it while the close handshake runs.
+    // The sender may see close code 1009 or 1006, depending on timing.
+    if (err.code === 'WS_ERR_UNSUPPORTED_MESSAGE_LENGTH') socket.terminate();
+  });
 });
 
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`[relay] HTTP+WS listening on port ${PORT}`);
+  console.log(`[relay] HTTP+WS listening on port ${PORT} (max message ${MAX_PAYLOAD_BYTES} bytes)`);
 });
 
 // ─── Handlers ─────────────────────────────────────────────────────────────────
