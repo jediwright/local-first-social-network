@@ -68,19 +68,31 @@ wss.on('connection', (socket, req) => {
     try { msg = JSON.parse(raw); }
     catch { sendError(socket, 'PARSE_ERROR', 'Message must be valid JSON'); return; }
 
-    switch (msg.type) {
-      case 'REGISTER_HANDLE':    handleRegister(socket, msg); break;
-      case 'CONNECTION_REQUEST': connectionRequest(socket, msg); break;
-      case 'CONNECTION_ACCEPT':  connectionAccept(socket, msg); break;
-      case 'CONNECTION_REJECT':  connectionReject(socket, msg); break;
-      case 'CHANNEL_JOIN':       channelJoin(socket, msg); break;
-      case 'CHANNEL_LEAVE':      channelLeave(socket, msg); break;
-      case 'SYNC_COMPLETE':      syncComplete(socket, msg); break;
-      case 'CRDT_SYNC_OFFER':    relayToHandle(socket, msg, msg.toHandle); break;
-      case 'CRDT_SYNC_ANSWER':   relayToHandle(socket, msg, msg.toHandle); break;
-      case 'CRDT_UPDATE':         relayToHandle(socket, msg, msg.toHandle); break;
-      case 'PING':               send(socket, { type: 'PONG' }); break;
-      default: sendError(socket, 'UNKNOWN_TYPE', `Unknown message type: ${msg.type}`);
+    // A message must be a JSON object. Anything else is refused here.
+    if (msg === null || typeof msg !== 'object' || Array.isArray(msg)) {
+      sendError(socket, 'INVALID_PAYLOAD', 'Message must be a JSON object'); return;
+    }
+
+    // A handler that throws on a malformed field must not take the relay
+    // down with it. The message is refused and the connection stays open.
+    try {
+      switch (msg.type) {
+        case 'REGISTER_HANDLE':    handleRegister(socket, msg); break;
+        case 'CONNECTION_REQUEST': connectionRequest(socket, msg); break;
+        case 'CONNECTION_ACCEPT':  connectionAccept(socket, msg); break;
+        case 'CONNECTION_REJECT':  connectionReject(socket, msg); break;
+        case 'CHANNEL_JOIN':       channelJoin(socket, msg); break;
+        case 'CHANNEL_LEAVE':      channelLeave(socket, msg); break;
+        case 'SYNC_COMPLETE':      syncComplete(socket, msg); break;
+        case 'CRDT_SYNC_OFFER':    relayToHandle(socket, msg, msg.toHandle); break;
+        case 'CRDT_SYNC_ANSWER':   relayToHandle(socket, msg, msg.toHandle); break;
+        case 'CRDT_UPDATE':         relayToHandle(socket, msg, msg.toHandle); break;
+        case 'PING':               send(socket, { type: 'PONG' }); break;
+        default: sendError(socket, 'UNKNOWN_TYPE', `Unknown message type: ${msg.type}`);
+      }
+    } catch (err) {
+      console.error('[relay] refused malformed message:', err.message);
+      sendError(socket, 'INVALID_PAYLOAD', 'Malformed message');
     }
   });
 
@@ -88,10 +100,11 @@ wss.on('connection', (socket, req) => {
   socket.on('error', (err) => {
     console.error('[relay] socket error:', err.message);
     cleanup(socket);
-    // An oversize message is not read any further. Drop the connection now
-    // rather than draining the rest of it while the close handshake runs.
-    // The sender may see close code 1009 or 1006, depending on timing.
-    if (err.code === 'WS_ERR_UNSUPPORTED_MESSAGE_LENGTH') socket.terminate();
+    // After any `ws` error (an oversize message, a frame that breaks the
+    // protocol) the connection is unusable. Drop it now rather than reading
+    // and discarding whatever else arrives while the close handshake runs.
+    // The sender may see the specific close code or 1006, depending on timing.
+    socket.terminate();
   });
 });
 

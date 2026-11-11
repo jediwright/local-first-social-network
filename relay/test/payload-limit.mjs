@@ -7,7 +7,9 @@
  *     or 1006, depending on timing), is delivered to nobody, and releases
  *     the sender's handle;
  *   - other connected clients are unaffected;
- *   - on a freshly started relay, a very large message adds little memory.
+ *   - on a freshly started relay, a very large message adds little memory;
+ *   - a frame that breaks the WebSocket protocol gets the connection dropped
+ *     at once, so data sent after it is not read.
  *
  * Run from the repository root, after `npm ci` in relay/:
  *   node relay/test/payload-limit.mjs
@@ -20,6 +22,8 @@
 import { createRequire } from 'module';
 import { spawn } from 'child_process';
 import fs from 'fs';
+import net from 'net';
+import crypto from 'crypto';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -123,6 +127,36 @@ try {
   if (base === null) note('memory growth under a 90 MB message, fresh relay', 'not measured on this platform');
   else ok('memory growth under a 90 MB message stays below 40 MB (fresh relay)', peak - base < 40, `grew ${(peak - base).toFixed(0)} MB`);
   ok('relay still answers /health', (await health()).status === 'ok');
+
+  // A protocol-breaking frame, then more data from a sender that ignores the
+  // relay's close. The relay must drop the connection, not keep reading.
+  srv.kill(); await sleep(300); PORT += 1; startRelay();
+  ok('fresh relay starts for the bad-frame check', await relayReady());
+  await sleep(500);
+  const base2 = rss(); let peak2 = base2;
+  const t2 = base2 === null ? null : setInterval(() => { peak2 = Math.max(peak2, rss() ?? 0); }, 15);
+  const raw = net.connect({ port: PORT, host: '127.0.0.1', allowHalfOpen: true });
+  let droppedAfter = null; const started = Date.now();
+  raw.on('close', () => { if (droppedAfter === null) droppedAfter = Date.now() - started; });
+  raw.on('error', () => { if (droppedAfter === null) droppedAfter = Date.now() - started; });
+  raw.on('data', () => {});
+  raw.write(`GET / HTTP/1.1\r\nHost: localhost\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: ${crypto.randomBytes(16).toString('base64')}\r\nSec-WebSocket-Version: 13\r\n\r\n`);
+  await sleep(300);
+  const sentAt = Date.now();
+  raw.write(Buffer.from([0x83, 0x80, 0, 0, 0, 0]));       // reserved opcode: a protocol error
+  const chunk = Buffer.alloc(1024 * 1024, 120); let acceptedMB = 0;
+  for (let i = 0; i < 90 && droppedAfter === null; i++) {
+    const flushed = raw.write(chunk);
+    if (!flushed) await new Promise(r => { raw.once('drain', r); setTimeout(r, 1500); });
+    if (droppedAfter === null) acceptedMB++;
+  }
+  await sleep(2500); if (t2) clearInterval(t2);
+  const dropMs = droppedAfter === null ? null : droppedAfter - (sentAt - started);
+  ok('connection is dropped within 2 seconds of a protocol-breaking frame', dropMs !== null && dropMs < 2000, dropMs === null ? `still open; relay took ${acceptedMB} MB` : `dropped after ${dropMs} ms`);
+  if (base2 === null) note('memory growth after a protocol-breaking frame, fresh relay', 'not measured on this platform');
+  else ok('memory growth after a protocol-breaking frame stays below 40 MB (fresh relay)', peak2 - base2 < 40, `grew ${(peak2 - base2).toFixed(0)} MB`);
+  raw.destroy();
+  ok('relay still answers /health after the bad frame', (await health()).status === 'ok');
 } catch (e) { ok('no exception', false, String(e)); }
 
 srv.kill(); await sleep(200);
