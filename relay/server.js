@@ -40,7 +40,24 @@ const server = http.createServer((req, res) => {
   }
 });
 
-const wss = new WebSocketServer({ server });
+/**
+ * Largest message the relay accepts, in bytes. A connection that sends more
+ * is closed by `ws` before the message is parsed or forwarded.
+ *
+ * The relay parses and re-serializes every message it forwards, so its memory
+ * use is a multiple of message size. This limit keeps one message from
+ * exhausting a small VM.
+ *
+ * Provisional: 4 MiB, set 2026-11-10. A full sync of roughly 3,900
+ * short thread messages fits; a longer history does not, and that sync will
+ * fail for the sender. To be revisited as use grows: when real thread
+ * histories approach that size, when the wire encoding of sync data changes,
+ * or when the VM's memory changes. The limit bounds one message; it does not
+ * bound how many connections send at once, which is a separate question.
+ */
+const MAX_PAYLOAD_BYTES = 4 * 1024 * 1024;
+
+const wss = new WebSocketServer({ server, maxPayload: MAX_PAYLOAD_BYTES });
 
 wss.on('connection', (socket, req) => {
   const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
@@ -51,28 +68,48 @@ wss.on('connection', (socket, req) => {
     try { msg = JSON.parse(raw); }
     catch { sendError(socket, 'PARSE_ERROR', 'Message must be valid JSON'); return; }
 
-    switch (msg.type) {
-      case 'REGISTER_HANDLE':    handleRegister(socket, msg); break;
-      case 'CONNECTION_REQUEST': connectionRequest(socket, msg); break;
-      case 'CONNECTION_ACCEPT':  connectionAccept(socket, msg); break;
-      case 'CONNECTION_REJECT':  connectionReject(socket, msg); break;
-      case 'CHANNEL_JOIN':       channelJoin(socket, msg); break;
-      case 'CHANNEL_LEAVE':      channelLeave(socket, msg); break;
-      case 'SYNC_COMPLETE':      syncComplete(socket, msg); break;
-      case 'CRDT_SYNC_OFFER':    relayToHandle(socket, msg, msg.toHandle); break;
-      case 'CRDT_SYNC_ANSWER':   relayToHandle(socket, msg, msg.toHandle); break;
-      case 'CRDT_UPDATE':         relayToHandle(socket, msg, msg.toHandle); break;
-      case 'PING':               send(socket, { type: 'PONG' }); break;
-      default: sendError(socket, 'UNKNOWN_TYPE', `Unknown message type: ${msg.type}`);
+    // A message must be a JSON object. Anything else is refused here.
+    if (msg === null || typeof msg !== 'object' || Array.isArray(msg)) {
+      sendError(socket, 'INVALID_PAYLOAD', 'Message must be a JSON object'); return;
+    }
+
+    // A handler that throws on a malformed field must not take the relay
+    // down with it. The message is refused and the connection stays open.
+    try {
+      switch (msg.type) {
+        case 'REGISTER_HANDLE':    handleRegister(socket, msg); break;
+        case 'CONNECTION_REQUEST': connectionRequest(socket, msg); break;
+        case 'CONNECTION_ACCEPT':  connectionAccept(socket, msg); break;
+        case 'CONNECTION_REJECT':  connectionReject(socket, msg); break;
+        case 'CHANNEL_JOIN':       channelJoin(socket, msg); break;
+        case 'CHANNEL_LEAVE':      channelLeave(socket, msg); break;
+        case 'SYNC_COMPLETE':      syncComplete(socket, msg); break;
+        case 'CRDT_SYNC_OFFER':    relayToHandle(socket, msg, msg.toHandle); break;
+        case 'CRDT_SYNC_ANSWER':   relayToHandle(socket, msg, msg.toHandle); break;
+        case 'CRDT_UPDATE':         relayToHandle(socket, msg, msg.toHandle); break;
+        case 'PING':               send(socket, { type: 'PONG' }); break;
+        default: sendError(socket, 'UNKNOWN_TYPE', `Unknown message type: ${msg.type}`);
+      }
+    } catch (err) {
+      console.error('[relay] refused malformed message:', err.message);
+      sendError(socket, 'INVALID_PAYLOAD', 'Malformed message');
     }
   });
 
   socket.on('close', () => cleanup(socket));
-  socket.on('error', (err) => { console.error('[relay] socket error:', err.message); cleanup(socket); });
+  socket.on('error', (err) => {
+    console.error('[relay] socket error:', err.message);
+    cleanup(socket);
+    // After any `ws` error (an oversize message, a frame that breaks the
+    // protocol) the connection is unusable. Drop it now rather than reading
+    // and discarding whatever else arrives while the close handshake runs.
+    // The sender may see the specific close code or 1006, depending on timing.
+    socket.terminate();
+  });
 });
 
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`[relay] HTTP+WS listening on port ${PORT}`);
+  console.log(`[relay] HTTP+WS listening on port ${PORT} (max message ${MAX_PAYLOAD_BYTES} bytes)`);
 });
 
 // ─── Handlers ─────────────────────────────────────────────────────────────────
