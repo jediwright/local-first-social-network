@@ -71,6 +71,8 @@ Changes touching any of the following are **automatically Critical**, regardless
 - `exportLocalState()`: additions or removals that change what a person can take off the device.
 - Crossing event emission in `relay/server.js` (`relayId` on every operation completion): `crossingParty` on the completion record is taken from that payload, not assumed.
 
+  *Known mismatch, recorded 2026-11-10:* at `e1081ac`, the string `relayId` does not appear in `relay/server.js` or anywhere under `src/`. The line above is left as written. Whether the code or this line is wrong is a question for a seam-decision session, not a build PR.
+
 **Relay state**
 
 - `handleRegistry` and `socketHandles` in `relay/server.js` are in-memory only (S4-4). Introducing any persistent server-side handle store is Critical and contradicts the governing record; it is a seam-decision question, not a build item.
@@ -86,6 +88,10 @@ Changes touching any of the following are **automatically Critical**, regardless
   | `yjs` | `^13.6.18` |
   | `y-indexeddb` | `^9.0.12` |
   | `ws` (relay) | `^8.17.0` |
+
+- `relay/Dockerfile` — the `NODE_VERSION` pin and the base image line. This sets the runtime the relay executes on. Added 2026-11-10: the pin had gone unreviewed from April to November 2026.
+
+- **Security updates to these packages.** A dependency update may use the emergency path (below) only when all three hold: a published advisory covers the version currently in the lockfile; the update stays inside the declared range above; and nothing outside the lockfile changes. The retrospective Critical-tier PR is still required within 1 business day. Anything else, including a range change, a new package, or an update with no advisory behind it, takes the standard Critical path. This is not a pre-cleared class: none is declared yet (see below).
 
 **Governance configuration**
 
@@ -109,6 +115,7 @@ The following are enforced by tooling, not by reviewer memory:
 
 - **Type check and build** — `npm run build` (`tsc && vite build`); must pass before merge. No separate lint script exists at adoption; adding one is a §7 item.
 - **Test suite** — none is instrumented at adoption. The S4-5 two-tab acceptance checklist in `SEAM_DECISIONS.md` (nine assertions, against a locally running relay) is the manual gate for Phase 4 PRs until automated tests exist. A PR that breaks any S4-5 assertion is blocked regardless of tier.
+- **Relay smoke test** — `node relay/test/smoke.mjs`, run by hand after `npm ci` in `relay/`. Not enforced by tooling and not a merge gate. It is a regression check on the relay's message handling only. It passes the same way on vulnerable and fixed versions of `ws`, so a pass is not security evidence, and it does not replace the S4-5 checklist. Its header lists what it does not cover.
 - **Structured commit format** — `fix:` / `feat:` / `refactor:` / `chore:` + scope. Enforced by commit hook (to be added; manual discipline until then). Makes history parseable and intention-legible.
 - **Diff-size advisory** — PRs exceeding 400 changed lines receive a comment requiring either a split or a written justification. Line count is not the tier definition; it is the signal that something may be mis-tiered.
 
@@ -127,6 +134,16 @@ For AI-assisted review: a review conducted in the same conversation that wrote t
 ## Self-healing conventions (§7)
 
 If your PR surfaces something undocumented — a convention not written down, a failure mode not on any list, a protected surface not declared above, a dependency quirk not recorded — **updating this file (or the relevant governing document) is part of your PR**. Code and documentation ship together. This is universal at Critical tier; it is the only mechanism that keeps this file accurate over time.
+
+---
+
+## Relay deployment
+
+The relay runs on Fly.io as the app `local-first-social-relay`. Pushing to `main` does not deploy it: there is no deploy workflow in this repository. A deploy is a manual `fly deploy` run from the `relay/` directory by the maintainer, using the Fly CLI on the maintainer's machine. The image is built from `relay/Dockerfile` and `relay/package-lock.json` as they stand in the working tree at that moment, so deploy from a clean tree at a pushed commit.
+
+Each deploy restarts the relay. No data is lost, because the relay holds no durable state (S4-4), but connected clients drop and re-register their handles.
+
+To see what is running: `fly releases` lists deploys; `curl https://local-first-social-relay.fly.dev/health` shows status.
 
 ---
 
