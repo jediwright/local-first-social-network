@@ -50,6 +50,8 @@ Changes touching any of the following are **automatically Critical**, regardless
 **Sync and replication semantics**
 
 - CRDT merge and sync handshake logic (`src/lib/crdt.js`, `src/hooks/useYjs.ts`): anything that changes what state gets replicated, in what order, or what a peer can observe after a sync.
+- The handshake checks in `src/lib/relay.js`: a connection accept or reject is acted on only as the answer to a request this client sent; a sync offer is answered only from a handle whose request this user accepted on the current relay connection; a sync answer is applied only from a handle this client sent an offer to; a live update is applied only from the established peer. No inbound sync message adds or changes a trust entry. Removing or loosening any of these is Critical. Checked by hand with `node test/sync-guards.mjs`.
+- `applyRemoteUpdate()` in `src/lib/crdt.js` restores this device's `identity` and `preferences` after every remote merge, live updates included. A change that lets a remote merge alter either is Critical.
 - `y-indexeddb` persistence configuration and `DB_NAME`: changes to how documents are namespaced on the device.
 - The offline path: changes to how the prototype behaves when the relay is unreachable or a peer is unresponsive.
 

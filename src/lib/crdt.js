@@ -16,6 +16,9 @@ import { doc, threadsMap, profileMap } from '../store/ydoc';
 
 const SYNC_ELIGIBLE_TIERS = new Set(['close', 'contact']);
 
+// Profile keys that belong to this device only. A remote update never changes them.
+const PROTECTED_PROFILE_KEYS = ['identity', 'preferences'];
+
 /**
  * Returns true if the given contactId is at a trust tier eligible for sync.
  * @param {string} contactId
@@ -59,17 +62,27 @@ export function getDiffUpdate(remoteStateVector) {
  * This merges their state into our local document (CRDT — commutative, idempotent).
  *
  * @param {Uint8Array} update
+ * @param {unknown} [origin] transaction origin. The live-update path passes
+ *   'relay' so that neither the merge nor the restore below is forwarded back
+ *   to the peer.
  */
-export function applyRemoteUpdate(update) {
+export function applyRemoteUpdate(update, origin) {
   // Save local identity before merge — profile must never be overwritten by a peer
-  const identity = profileMap.get('identity');
-  const preferences = profileMap.get('preferences');
+  const before = PROTECTED_PROFILE_KEYS.map((key) => [key, profileMap.get(key)]);
 
-  Y.applyUpdate(doc, update);
+  Y.applyUpdate(doc, update, origin);
 
-  // Re-assert local identity after merge (Y.js last-write-wins — we always win our own profile)
-  if (identity) profileMap.set('identity', identity);
-  if (preferences) profileMap.set('preferences', preferences);
+  // Restore any protected key the merge changed (Y.js last-write-wins — we
+  // always win our own profile). Keys the merge left alone are not rewritten,
+  // so an update that does not touch the profile produces no write here.
+  const changed = before.filter(([key, value]) => profileMap.get(key) !== value);
+  if (changed.length === 0) return;
+  doc.transact(() => {
+    for (const [key, value] of changed) {
+      if (value === undefined) profileMap.delete(key);
+      else profileMap.set(key, value);
+    }
+  }, origin);
 }
 
 // ─── Thread-scoped sync ───────────────────────────────────────────────────────
@@ -153,8 +166,17 @@ export function initiateSyncHandshake(peerHandle) {
  * @returns {{ type: 'CRDT_SYNC_ANSWER', toHandle: string, answer: { update: number[] } } | null}
  */
 export function respondToSyncOffer(fromHandle, offer) {
-  // Skip eligibility check — receiving an offer means initiator already verified trust.
-  // The acceptor's trust graph entry may not be committed yet due to Y.js timing.
+  // The responder checks its own trust graph. The accept path writes the trust
+  // entry (a synchronous Y.js transaction) before CONNECTION_ACCEPT is sent, so
+  // the entry is always present by the time a legitimate offer arrives.
+  if (!isSyncEligible(fromHandle)) {
+    console.warn(`[crdt] sync offer refused — ${fromHandle} not at eligible trust tier`);
+    return null;
+  }
+  if (!offer || !Array.isArray(offer.stateVector)) {
+    console.warn(`[crdt] sync offer refused — malformed offer from ${fromHandle}`);
+    return null;
+  }
   console.log(`[crdt] responding to sync offer from ${fromHandle}`);
   const answer = buildSyncAnswer(offer);
 
@@ -178,8 +200,17 @@ export function completeSyncHandshake(fromHandle, answer, requestId) {
     console.warn(`[crdt] sync answer rejected — ${fromHandle} not at eligible trust tier`);
     return null;
   }
+  if (!answer || !Array.isArray(answer.update)) {
+    console.warn(`[crdt] sync answer rejected — malformed answer from ${fromHandle}`);
+    return null;
+  }
 
-  applySyncAnswer(answer);
+  try {
+    applySyncAnswer(answer);
+  } catch (err) {
+    console.warn(`[crdt] sync answer rejected — could not be applied: ${err.message}`);
+    return null;
+  }
   console.log(`[crdt] sync complete with ${fromHandle}`);
 
   // Signal relay to exit sync path
