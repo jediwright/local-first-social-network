@@ -1,6 +1,6 @@
 # Local-First.Social
 
-A social network where you own your graph. The relay facilitates connection and then exits. The platform never accumulates your relationship data.
+A social network where you own your graph. The relay has no database: it passes messages between people who have agreed to connect, and forgets the connection when either one leaves. The platform never accumulates your relationship data.
 
 **Live:** [localfirst.social](https://localfirst.social)
 
@@ -25,7 +25,7 @@ about who owns your data and relationships.
 
 ## What it is
 
-Local-First Social is a social network built on a different architectural premise: your content, connections, and history live on your device first. The server is minimal by design — it facilitates the initial handshake between two people and then gets out of the way.
+Local-First Social is a social network built on a different architectural premise: your content, connections, and history live on your device first. The server is minimal by design — it introduces two people, passes their sync messages while both are online, and stores none of it.
 
 The social primitive is the **ping** — a low-friction, intentional signal. Not a post optimized for engagement. Not a message requiring a response. A ping says: *I'm here. I'm thinking about this. You're in my circle.*
 
@@ -49,19 +49,19 @@ All application state lives in a single Y.js document persisted to IndexedDB via
 
 ```
 client (Y.js / IndexedDB)
-    ↕ WebSocket handshake
-relay (stateless — facilitates connection, exits after sync)
-    ↕ WebSocket handshake
+    ↕ WebSocket
+relay (no database — connects two people, forwards sync while both are online)
+    ↕ WebSocket
 client (Y.js / IndexedDB)
 ```
 
-**Three operations require the relay:**
+**Three operations go through the relay:**
 
-1. Connection request — client A signals intent to client B; relay exits after handshake
-2. Thread sync — CRDT merge of thread history between connected clients; relay exits after sync
+1. Connection request — client A signals intent to client B; the relay passes the request and the answer
+2. Thread sync — CRDT merge of thread history between connected clients, and the live updates that follow while both are online
 3. Channel discovery — lightweight interest-channel presence signal, no content stored server-side
 
-After a connection is established, the relay is no longer in the path. Your threads, pings, and contact list are yours — before they're anyone else's.
+The relay forwards sync messages only between two people whose connection request was accepted, and only while both are still connected to it. When either one leaves, it forgets the connection. It keeps no copy of what it forwards. Your threads, pings, and contact list are yours — before they're anyone else's.
 
 Each of these three operations is a *crossing*: a moment where data leaves the device. How crossings are gated and recorded is governed by [`SEAM_DECISIONS.md`](SEAM_DECISIONS.md). Design tradeoffs that might look like gaps are explained in [`KNOWN_LIMITS.md`](KNOWN_LIMITS.md).
 
@@ -69,7 +69,7 @@ Each of these three operations is a *crossing*: a moment where data leaves the d
 
 - React + TypeScript + Tailwind
 - Y.js + y-indexeddb (local-first state)
-- WebSocket relay on Fly.io (stateless, persistent connections)
+- WebSocket relay on Fly.io (in-memory only, persistent connections)
 - Deployed on Vercel
 
 ---
@@ -118,7 +118,7 @@ Each of these three operations is a *crossing*: a moment where data leaves the d
 3. **Depth, not breadth.** 50 real pings beat 5,000 followers.
 4. **Intentionality, not optimization.** No algorithm decides who you see.
 5. **Portability as a feature.** Full export, open format, no lock-in.
-6. **The relay earns nothing.** Infrastructure facilitates connection and exits. It does not accumulate relationship data.
+6. **The relay earns nothing.** Infrastructure connects people and passes their messages. It does not accumulate relationship data.
 
 ---
 
@@ -154,13 +154,28 @@ npm run dev
 node relay/server.js
 ```
 
-then set `VITE_RELAY_URL=ws://localhost:8080` in `.env.local` and restart `npm run dev`.
+then set `VITE_RELAY_URL=ws://localhost:8080` in `.env.local` and restart `npm run dev`. The relay has its own dependencies: run `npm ci` in `relay/` first.
+
+---
+
+## Tests
+
+Four scripts, run from the repository root after `npm ci` at the root and in `relay/`. Each starts its own relay on a spare local port; none touches a deployed relay.
+
+```bash
+node relay/test/pairing.mjs          # which messages the relay forwards between two handles
+node relay/test/malformed-input.mjs  # the relay refuses malformed messages and keeps running
+node relay/test/payload-limit.mjs    # the 4 MiB message limit
+node test/sync-guards.mjs            # who the client will sync with
+```
+
+`test/sync-guards.mjs` replaces IndexedDB with a stub, so persistence is not covered. The two memory measurements in `relay/test/payload-limit.mjs` are taken on Linux only.
 
 ---
 
 ## Relay
 
-The relay is deployed on Fly.io. It is stateless — a crash and restart loses nothing because all state is client-side. The handle registry is ephemeral and rebuilt from reconnecting clients (this is deliberate; see [`KNOWN_LIMITS.md`](KNOWN_LIMITS.md)).
+The relay is deployed on Fly.io. It has no database; what it knows is held in memory. That is two things: the handle registry, and which pairs of connected people are both online. Both are ephemeral. A crash and restart loses no content, because all content is client-side. Clients reconnect and re-register on their own, and two people who were syncing live send a new connection request to resume (this is deliberate; see [`KNOWN_LIMITS.md`](KNOWN_LIMITS.md)).
 
 ```bash
 curl https://local-first-social-relay.fly.dev/health
@@ -183,13 +198,15 @@ This is one of the prototypes in the [Local-First Series](https://github.com/jed
 
 Each prototype introduces a harder version of the seam problem. Local-First Social's seam fires on every new connection, and the thing on the far side is another user's local-first client, not a stateless server — the series calls this the *distributed seam*. The employment seam that followed extends the same pattern into a regulated, multi-party relationship; the [Seam Stack](https://github.com/jediwright/seam-stack) documents its formalization.
 
-The architectural argument: a social network where the user owns the graph, the relay facilitates connection and then exits, and the platform never accumulates relationship data.
+The architectural argument: a social network where the user owns the graph, the relay connects people and passes their messages without storing either, and the platform never accumulates relationship data.
 
 ---
 
 ## Status
 
 **Phase 5 complete as of April 2026.** Real-time bidirectional messaging, CRDT sync, trust graph, channels, ping streaks, share links, and asset library all working in production.
+
+**November 2026.** The relay now forwards sync messages only between two people whose connection request was accepted, and forgets a connection when either one leaves. The client acts on handshake and sync messages only inside a connection the user took part in.
 
 **Phase 4 governance retrofit in progress (September 2026).** The relay and connection protocol already work; what's being added is the governance layer around them, under [`SEAM_DECISIONS.md`](SEAM_DECISIONS.md). The most visible change coming: connecting with someone will no longer automatically sync thread history. Accepting a request makes you *connected*; sharing history requires the user to set a trust level themselves. Every relay operation will also write a local record of what crossed and why.
 
