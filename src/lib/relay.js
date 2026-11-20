@@ -269,6 +269,11 @@ function openSocket() {
     acceptedPeers.clear();
     outstandingOffers.clear();
     connectedPeerHandle = null;
+    // A request sent on this connection cannot be answered on another one.
+    for (const [requestId, req] of pendingRequests) {
+      pendingRequests.delete(requestId);
+      req.reject(new Error('Relay connection closed before the request was answered'));
+    }
     setState('idle');
     scheduleReconnect();
   };
@@ -387,7 +392,8 @@ function handleMessage(msg) {
     case 'CONNECTION_REJECTED': {
       // As with an accept: only the answer to a request this client sent.
       const req = pendingRequests.get(msg.requestId);
-      if (!req || bareHandle(req.toHandle) !== bareHandle(msg.byHandle)) {
+      const rejectedBy = bareHandle(msg.byHandle);
+      if (!req || !rejectedBy || bareHandle(req.toHandle) !== rejectedBy) {
         console.warn('[relay-client] ignored a connection reject that matches no pending request');
         break;
       }
@@ -407,6 +413,9 @@ function handleMessage(msg) {
 
     case 'ERROR':
       console.warn(`[relay-client] relay error: [${msg.code}] ${msg.message}`);
+      // The relay refuses a sync message when the peer it is addressed to is
+      // no longer connected to this client. Stop treating that peer as live.
+      if (msg.code === 'NOT_CONNECTED') endPeerSession();
       emit('error', { code: msg.code, message: msg.message });
       break;
 
@@ -466,6 +475,21 @@ function wireDocUpdateForwarding(peerHandle) {
   };
   doc.on('update', docUpdateListener);
   console.log(`[relay-client] doc update forwarding wired to ${peerHandle}`);
+}
+
+/**
+ * End the current peer session: stop forwarding doc updates, forget the
+ * established peer and any offer still waiting for an answer. The relay
+ * connection itself stays up.
+ */
+function endPeerSession() {
+  if (docUpdateListener) {
+    doc.off('update', docUpdateListener);
+    docUpdateListener = null;
+  }
+  connectedPeerHandle = null;
+  outstandingOffers.clear();
+  if (connectionState === 'syncing' || connectionState === 'established') setState('registered');
 }
 
 // ─── CRDT message handling ────────────────────────────────────────────────────

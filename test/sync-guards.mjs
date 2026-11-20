@@ -9,6 +9,9 @@
  *            message to the handle it names and checks nothing, so these
  *            checks show what the client does by itself.
  *   Part 2 — relay/server.js. Two users connect the ordinary way and sync.
+ *   Part 3 — relay/server.js. A connected peer goes away and a different
+ *            socket registers the same handle. These checks depend on the
+ *            relay in this checkout as much as on the client.
  *
  * Run from the repository root, after `npm ci` at the root and in relay/:
  *   node test/sync-guards.mjs
@@ -200,7 +203,80 @@ async function part1() {
   ok('A6 malformed sync messages: document unchanged', snapshot(user) === before);
   ok('A6 malformed sync messages: client still connected', user.relay.isRelayConnected());
 
+  // A6, continued — the same kinds of payload from senders the client does act on:
+  // a peer whose request was accepted, the established peer, and a peer this
+  // client sent an offer to. Some of these payloads decode; what is checked is
+  // that none throws, none changes the document, and the client carries on.
+  const errors2 = []; const onErr2 = (e) => errors2.push(e);
+  process.on('uncaughtException', onErr2);
+  const payloads = [[255, 255, 255, 255], [1, 2, 3], [300, -1], ['x'], []];
+  const pat = await rawClient(url, '@pat');
+  const acceptPat = async (id) => {
+    pat.send({ type: 'CONNECTION_REQUEST', fromHandle: '@pat', toHandle: '@casey', requestId: id });
+    await until(() => user.events.some(([e, d]) => e === 'connection_request' && d.requestId === id));
+    user.store.addContact('pat', 'contact');
+    user.relay.acceptConnectionRequest(id, '@pat');
+    await until(() => pat.got('CONNECTION_ACCEPTED').some((m) => m.requestId === id));
+  };
   hush(true);
+  for (const [i, bad] of payloads.entries()) {
+    await acceptPat(`bad-offer-${i}`);
+    pat.send({ type: 'CRDT_SYNC_OFFER', toHandle: '@casey', offer: { stateVector: bad } });
+    await settle();
+  }
+  await acceptPat('good-offer'); pat.q.length = 0;
+  pat.send({ type: 'CRDT_SYNC_OFFER', toHandle: '@casey', offer: { stateVector: [0] } });
+  const answered = await until(() => pat.got('CRDT_SYNC_ANSWER').length > 0);
+  hush(false);
+  ok('A6 malformed offers from an accepted peer: nothing thrown', errors2.length === 0, errors2.map((e) => e.message).join(' | '));
+  ok('A6 …and a well-formed offer from an accepted peer is still answered', answered);
+
+  const beforePeer = snapshot(user);
+  hush(true);
+  for (const bad of [...payloads, 'not-an-array', null, { length: 5 }]) pat.send({ type: 'CRDT_UPDATE', toHandle: '@casey', update: bad });
+  await settle(); hush(false);
+  ok('A6 malformed updates from the established peer: nothing thrown', errors2.length === 0, errors2.map((e) => e.message).join(' | '));
+  ok('A6 malformed updates from the established peer: document unchanged', snapshot(user) === beforePeer);
+  hush(true);
+  pat.send({ type: 'CRDT_UPDATE', toHandle: '@casey', update: forged() });
+  const applied = await until(() => snapshot(user).includes('https://example.org/planted'));
+  hush(false);
+  ok('A6 …and a well-formed update from the established peer is still applied', applied);
+  ok('A6 …without replacing the local identity', user.store.getIdentity()?.handle === 'casey', String(user.store.getIdentity()?.handle));
+
+  const quinn = await rawClient(url, '@quinn');
+  const offerToQuinn = async () => {
+    quinn.q.length = 0;
+    user.relay.sendConnectionRequest('@quinn').catch(() => {});
+    await until(() => quinn.got('CONNECTION_REQUEST_INCOMING').length > 0);
+    const id = quinn.got('CONNECTION_REQUEST_INCOMING').pop().requestId;
+    quinn.send({ type: 'CONNECTION_ACCEPT', requestId: id, fromHandle: '@casey', toHandle: '@quinn' });
+    return until(() => quinn.got('CRDT_SYNC_OFFER').length > 0);
+  };
+  const assetsOf = (tab) => JSON.stringify(JSON.parse(snapshot(tab)).assets);
+  const beforeAnswer = assetsOf(user);
+  hush(true);
+  for (const bad of [...payloads, 'not-an-array', null]) {
+    await offerToQuinn();
+    quinn.send({ type: 'CRDT_SYNC_ANSWER', toHandle: '@casey', answer: { update: bad } });
+    await settle();
+  }
+  hush(false);
+  ok('A6 malformed answers to an outstanding offer: nothing thrown', errors2.length === 0, errors2.map((e) => e.message).join(' | '));
+  ok('A6 malformed answers to an outstanding offer: nothing merged', assetsOf(user) === beforeAnswer);
+  hush(true);
+  const offered = await offerToQuinn();
+  const late = new user.Y.Doc();
+  late.getMap('assets').set('from-quinn', { type: 'link', url: 'https://example.org/from-quinn', sharedInThread: 'x', sharedAt: '' });
+  quinn.send({ type: 'CRDT_SYNC_ANSWER', toHandle: '@casey', answer: { update: Array.from(user.Y.encodeStateAsUpdate(late)) } });
+  const merged = await until(() => snapshot(user).includes('https://example.org/from-quinn'));
+  hush(false);
+  process.off('uncaughtException', onErr2);
+  ok('A6 …and a well-formed answer to an outstanding offer is still applied', offered && merged);
+  ok('A6 client still connected after all of the above', user.relay.isRelayConnected());
+
+  hush(true);
+  pat.close(); quinn.close();
   user.relay.disconnect(); other.close(); anon.close(); friendRaw.close();
   await new Promise((r) => wss.close(r)); hush(false);
 }
@@ -273,8 +349,90 @@ async function part2() {
   ada.relay.disconnect(); bo.relay.disconnect(); srv.kill(); await sleep(100); hush(false);
 }
 
+// ─── Part 3: a peer goes away and another socket registers its handle ────────
+async function part3() {
+  const port = 19200 + Math.floor(Math.random() * 300);
+  const url = `ws://127.0.0.1:${port}`;
+  let log = '';
+  const srv = spawn('node', ['server.js'], { cwd: path.join(root, 'relay'), env: { ...process.env, PORT: String(port) }, stdio: ['ignore', 'pipe', 'pipe'] });
+  srv.stdout.on('data', (d) => log += d); srv.stderr.on('data', (d) => log += d);
+  await until(() => log.includes('listening'), 5000);
+  const settle = () => sleep(300);
+  const gone = async (c) => { await new Promise((r) => { c.s.on('close', r); c.s.close(); }); await sleep(150); };
+  const planted = (tab) => {
+    const d = new tab.Y.Doc();
+    d.getMap('assets').set('planted', { type: 'link', url: 'https://example.org/planted', sharedInThread: 'x', sharedAt: '' });
+    return Array.from(tab.Y.encodeStateAsUpdate(d));
+  };
+  // The peer asks, and the user accepts the way ConnectionRequest.tsx does.
+  const acceptFrom = async (tab, peer, id) => {
+    peer.send({ type: 'CONNECTION_REQUEST', fromHandle: '@ben', toHandle: `@${tab.store.getIdentity().handle}`, requestId: id });
+    await until(() => tab.events.some(([e, d]) => e === 'connection_request' && d.requestId === id));
+    tab.store.addContact('ben', 'contact');
+    tab.relay.acceptConnectionRequest(id, '@ben');
+    await until(() => peer.got('CONNECTION_ACCEPTED').length > 0);
+  };
+
+  hush(true);
+  // Accepted, then the peer leaves before offering.
+  let user = await openTab('dana', url); let peer = await rawClient(url, '@ben');
+  await acceptFrom(user, peer, 'r1'); await gone(peer);
+  let next = await rawClient(url, '@ben');
+  next.send({ type: 'CRDT_SYNC_OFFER', toHandle: '@dana', offer: { stateVector: [0] } }); await settle();
+  const r1 = next.got('CRDT_SYNC_ANSWER').length === 0;
+  next.close(); user.relay.disconnect();
+
+  // Established, then the peer leaves.
+  user = await openTab('eli', url); peer = await rawClient(url, '@ben');
+  await acceptFrom(user, peer, 'r2');
+  peer.send({ type: 'CRDT_SYNC_OFFER', toHandle: '@eli', offer: { stateVector: [0] } });
+  const handshake = await until(() => peer.got('CRDT_SYNC_ANSWER').length > 0);
+  await gone(peer);
+  next = await rawClient(url, '@ben');
+  let before = snapshot(user);
+  next.send({ type: 'CRDT_UPDATE', toHandle: '@eli', update: planted(user) }); await settle();
+  const r2 = snapshot(user) === before;
+  user.store.addAsset('later', { type: 'link', url: 'https://example.org/later', sharedInThread: 'x', sharedAt: '' }); await settle();
+  const r4 = next.got('CRDT_UPDATE').length === 0;
+  const stateAfter = user.relay.getConnectionState();
+  next.close(); user.relay.disconnect();
+
+  // An offer is outstanding, then the peer leaves.
+  user = await openTab('flo', url); peer = await rawClient(url, '@ben');
+  user.relay.sendConnectionRequest('@ben').catch(() => {});
+  await until(() => peer.got('CONNECTION_REQUEST_INCOMING').length > 0);
+  const id = peer.got('CONNECTION_REQUEST_INCOMING')[0]?.requestId;
+  peer.send({ type: 'CONNECTION_ACCEPT', requestId: id, fromHandle: '@flo', toHandle: '@ben' });
+  await until(() => peer.got('CRDT_SYNC_OFFER').length > 0); await gone(peer);
+  next = await rawClient(url, '@ben'); before = snapshot(user);
+  next.send({ type: 'CRDT_SYNC_ANSWER', toHandle: '@flo', answer: { update: planted(user) }, requestId: id }); await settle();
+  const r3 = snapshot(user) === before;
+  next.close(); user.relay.disconnect();
+
+  // The peer leaves before the user answers its request.
+  user = await openTab('gus', url); peer = await rawClient(url, '@ben');
+  peer.send({ type: 'CONNECTION_REQUEST', fromHandle: '@ben', toHandle: '@gus', requestId: 'r5' });
+  await until(() => user.events.some(([e, d]) => e === 'connection_request' && d.requestId === 'r5')); await gone(peer);
+  next = await rawClient(url, '@ben');
+  user.store.addContact('ben', 'contact'); user.relay.acceptConnectionRequest('r5', '@ben'); await settle();
+  const r5a = next.got('CONNECTION_ACCEPTED').length === 0;
+  next.send({ type: 'CRDT_SYNC_OFFER', toHandle: '@gus', offer: { stateVector: [0] } }); await settle();
+  const r5b = next.got('CRDT_SYNC_ANSWER').length === 0;
+  next.close(); user.relay.disconnect(); srv.kill(); await sleep(100);
+  hush(false);
+
+  ok('R1 accepted peer leaves; another socket with its handle gets no sync answer', r1);
+  ok('R2 ordinary handshake with the peer completes first', handshake);
+  ok('R2 established peer leaves; another socket with its handle cannot write', r2);
+  ok('R4 …and does not receive the user\'s later updates', r4);
+  ok('R4 …and the client stops treating the peer as connected', stateAfter === 'registered', stateAfter);
+  ok('R3 offer outstanding, peer leaves; another socket with its handle cannot answer it', r3);
+  ok('R5 requester leaves before the accept; the accept is not delivered to another socket', r5a);
+  ok('R5 …and that socket gets no sync answer', r5b);
+}
+
 let failed = false;
-try { await part1(); await part2(); }
+try { await part1(); await part2(); await part3(); }
 catch (err) { hush(false); failed = true; console.error('test run aborted:', err); }
 finally { rmSync(work, { recursive: true, force: true }); }
 

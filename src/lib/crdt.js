@@ -178,7 +178,13 @@ export function respondToSyncOffer(fromHandle, offer) {
     return null;
   }
   console.log(`[crdt] responding to sync offer from ${fromHandle}`);
-  const answer = buildSyncAnswer(offer);
+  let answer;
+  try {
+    answer = buildSyncAnswer(offer);
+  } catch (err) {
+    console.warn(`[crdt] sync offer refused — could not be read: ${err.message}`);
+    return null;
+  }
 
   return {
     type: 'CRDT_SYNC_ANSWER',
