@@ -13,12 +13,12 @@
  *   CRDT messages (CRDT_SYNC_OFFER, CRDT_SYNC_ANSWER) → forwarded to crdt.js
  */
 
-import * as Y from 'yjs';
 import { profileMap, doc, addContact } from '../store/ydoc';
 import {
   initiateSyncHandshake,
   respondToSyncOffer,
   completeSyncHandshake,
+  applyRemoteUpdate,
   CRDT_MESSAGE_TYPES,
 } from './crdt';
 
@@ -42,8 +42,23 @@ let socket = null;
 let reconnectTimer = null;
 let pingTimer = null;
 let reconnectDelay = RECONNECT_DELAY_MS;
-let connectedPeerHandle = null;  // handle of current established peer
+let connectedPeerHandle = null;  // bare handle (no @, lowercase) of the current established peer, either side
 let docUpdateListener = null;    // cleanup ref for doc.on('update')
+
+/**
+ * Handshake bookkeeping for this relay session. All three are keyed by bare
+ * handle and cleared when the socket closes.
+ *
+ *   acceptedPeers      — requests this user accepted in the UI; a sync offer is
+ *                        answered only from one of these, once.
+ *   outstandingOffers  — peers this client sent a sync offer to; a sync answer
+ *                        is applied only from one of these, once.
+ *
+ * A CRDT message from anyone else is dropped. The sender's handle is the one
+ * the relay attaches; these checks are only as strong as that relay.
+ */
+const acceptedPeers = new Set();
+const outstandingOffers = new Set();
 
 /**
  * Pending outbound connection requests awaiting accept/reject.
@@ -133,6 +148,10 @@ export function acceptConnectionRequest(requestId, fromHandle) {
   const raw = getMyHandle();
   const myHandle = raw && !raw.startsWith("@") ? `@${raw}` : raw;
   if (!myHandle) return;
+
+  // Record the accept before the send, so the offer that follows is expected.
+  const peer = bareHandle(fromHandle);
+  if (peer) acceptedPeers.add(peer);
 
   sendMessage({
     type: 'CONNECTION_ACCEPT',
@@ -246,6 +265,15 @@ function openSocket() {
   socket.onclose = (event) => {
     console.log(`[relay-client] disconnected (code: ${event.code})`);
     clearPingTimer();
+    // The relay forgets a connection when it drops; so does this client.
+    acceptedPeers.clear();
+    outstandingOffers.clear();
+    connectedPeerHandle = null;
+    // A request sent on this connection cannot be answered on another one.
+    for (const [requestId, req] of pendingRequests) {
+      pendingRequests.delete(requestId);
+      req.reject(new Error('Relay connection closed before the request was answered'));
+    }
     setState('idle');
     scheduleReconnect();
   };
@@ -326,34 +354,33 @@ function handleMessage(msg) {
       break;
 
     case 'CONNECTION_ACCEPTED': {
+      // An accept counts only as the answer to a request this client sent,
+      // from the handle that request was addressed to.
       const req = pendingRequests.get(msg.requestId);
-      if (req) {
-        pendingRequests.delete(msg.requestId);
-        req.resolve({ accepted: true, byHandle: msg.byHandle });
+      const peerKey = bareHandle(msg.byHandle);
+      if (!req || !peerKey || bareHandle(req.toHandle) !== peerKey) {
+        console.warn('[relay-client] ignored a connection accept that matches no pending request');
+        break;
       }
+      pendingRequests.delete(msg.requestId);
+      req.resolve({ accepted: true, byHandle: msg.byHandle });
       emit('connection_accepted', { requestId: msg.requestId, byHandle: msg.byHandle });
 
       // Set trust tier on initiator side before CRDT sync
-      if (msg.byHandle) {
-        const peerKey = msg.byHandle.replace(/^@/, '').toLowerCase().trim();
-        const trustGraph = profileMap.get('trust_graph');
-        if (!trustGraph || !trustGraph.get(peerKey)) {
-          addContact(peerKey, 'contact');
-        }
+      const trustGraph = profileMap.get('trust_graph');
+      if (!trustGraph || !trustGraph.get(peerKey)) {
+        addContact(peerKey, 'contact');
       }
       // If relay signals sync should begin, initiate CRDT handshake
       if (msg.syncSignal) {
         setState('syncing');
-        const normalizedPeer = msg.byHandle.replace(/^@/, '').toLowerCase().trim();
-        const relayPeer = '@' + normalizedPeer;
-        const offer = initiateSyncHandshake(relayPeer);
+        const offer = initiateSyncHandshake('@' + peerKey);
         if (offer) {
+          outstandingOffers.add(peerKey);
           sendMessage(offer);
           console.log(`[relay-client] CRDT sync initiated with ${msg.byHandle}`);
         } else {
           // Trust tier insufficient — accept but skip sync
-          connectedPeerHandle = msg.byHandle;
-          wireDocUpdateForwarding(msg.byHandle);
           setState('established');
         }
       } else {
@@ -363,12 +390,16 @@ function handleMessage(msg) {
     }
 
     case 'CONNECTION_REJECTED': {
-      setState('registered');
+      // As with an accept: only the answer to a request this client sent.
       const req = pendingRequests.get(msg.requestId);
-      if (req) {
-        pendingRequests.delete(msg.requestId);
-        req.resolve({ accepted: false, byHandle: msg.byHandle });
+      const rejectedBy = bareHandle(msg.byHandle);
+      if (!req || !rejectedBy || bareHandle(req.toHandle) !== rejectedBy) {
+        console.warn('[relay-client] ignored a connection reject that matches no pending request');
+        break;
       }
+      setState('registered');
+      pendingRequests.delete(msg.requestId);
+      req.resolve({ accepted: false, byHandle: msg.byHandle });
       emit('connection_rejected', { requestId: msg.requestId, byHandle: msg.byHandle });
       break;
     }
@@ -382,15 +413,35 @@ function handleMessage(msg) {
 
     case 'ERROR':
       console.warn(`[relay-client] relay error: [${msg.code}] ${msg.message}`);
+      // The relay refuses a sync message when the peer it is addressed to is
+      // no longer connected to this client. Stop treating that peer as live.
+      if (msg.code === 'NOT_CONNECTED') endPeerSession();
       emit('error', { code: msg.code, message: msg.message });
       break;
 
       case 'PONG': break; // keepalive response
 
     case 'CRDT_UPDATE': {
-      // Peer sent a real-time Y.js update — apply it with 'relay' origin to avoid echo
-      const update = new Uint8Array(msg.update);
-      Y.applyUpdate(doc, update, 'relay');
+      // A real-time Y.js update is applied only from the established peer: the
+      // one handle this client completed a sync handshake with on this
+      // connection. The tier was checked at that handshake. It is not checked
+      // again here, because the handshake merges the two trust graphs and the
+      // local entry for the peer may not survive that merge.
+      const from = bareHandle(msg.fromHandle);
+      if (!from || from !== connectedPeerHandle) {
+        console.warn('[relay-client] dropped a doc update from a handle that is not the established peer');
+        break;
+      }
+      if (!Array.isArray(msg.update)) {
+        console.warn('[relay-client] dropped a malformed doc update');
+        break;
+      }
+      try {
+        // 'relay' origin keeps the update from being echoed back to the peer.
+        applyRemoteUpdate(new Uint8Array(msg.update), 'relay');
+      } catch (err) {
+        console.warn('[relay-client] dropped a doc update that could not be applied:', err.message);
+      }
       break;
     }
 
@@ -426,22 +477,40 @@ function wireDocUpdateForwarding(peerHandle) {
   console.log(`[relay-client] doc update forwarding wired to ${peerHandle}`);
 }
 
+/**
+ * End the current peer session: stop forwarding doc updates, forget the
+ * established peer and any offer still waiting for an answer. The relay
+ * connection itself stays up.
+ */
+function endPeerSession() {
+  if (docUpdateListener) {
+    doc.off('update', docUpdateListener);
+    docUpdateListener = null;
+  }
+  connectedPeerHandle = null;
+  outstandingOffers.clear();
+  if (connectionState === 'syncing' || connectionState === 'established') setState('registered');
+}
+
 // ─── CRDT message handling ────────────────────────────────────────────────────
 
 function handleCrdtMessage(msg) {
   switch (msg.type) {
     case 'CRDT_SYNC_OFFER': {
-      // Peer is initiating sync with us — ensure they're in trust graph before eligibility check
-      const offerFrom = (msg.fromHandle || msg.toHandle).replace(/^@/, '').toLowerCase().trim();
-      const trustGraph = profileMap.get('trust_graph');
-      if (offerFrom && (!trustGraph || !trustGraph.get(offerFrom))) {
-        addContact(offerFrom, 'contact');
+      // A sync offer is answered only from a handle whose connection request
+      // this user accepted in this session. Receiving an offer never adds or
+      // changes a trust entry.
+      const offerFrom = bareHandle(msg.fromHandle);
+      if (!offerFrom || !acceptedPeers.has(offerFrom)) {
+        console.warn('[relay-client] dropped a sync offer from a handle with no accepted request');
+        break;
       }
+      acceptedPeers.delete(offerFrom);
       const answer = respondToSyncOffer(offerFrom, msg.offer);
       if (answer) {
         sendMessage(answer);
-        const offerSender = msg.fromHandle || msg.toHandle;
-        wireDocUpdateForwarding(offerSender.startsWith('@') ? offerSender : '@' + offerSender);
+        connectedPeerHandle = offerFrom;
+        wireDocUpdateForwarding('@' + offerFrom);
         setState('established');
         console.log(`[relay-client] CRDT sync answer sent to ${answer.toHandle}`);
       }
@@ -449,8 +518,14 @@ function handleCrdtMessage(msg) {
     }
 
     case 'CRDT_SYNC_ANSWER': {
-      // We initiated sync — apply the answer and signal complete
-      const fromHandle = (msg.fromHandle || msg.toHandle).replace(/^@/, '').toLowerCase().trim();
+      // We initiated sync — apply the answer and signal complete. An answer is
+      // applied only from a handle this client sent an offer to.
+      const fromHandle = bareHandle(msg.fromHandle);
+      if (!fromHandle || !outstandingOffers.has(fromHandle)) {
+        console.warn('[relay-client] dropped a sync answer that matches no outstanding offer');
+        break;
+      }
+      outstandingOffers.delete(fromHandle);
       const complete = completeSyncHandshake(fromHandle, msg.answer, msg.requestId);
       if (complete) {
         sendMessage(complete); // SYNC_COMPLETE → relay exits sync path
@@ -490,6 +565,14 @@ function emit(event, data) {
       console.error(`[relay-client] listener error on '${event}':`, err);
     }
   });
+}
+
+/**
+ * Bare handle: no leading @, lowercase, trimmed. The same normalization the
+ * trust graph is keyed by. Returns '' for anything that is not a string.
+ */
+function bareHandle(handle) {
+  return typeof handle === 'string' ? handle.replace(/^@/, '').toLowerCase().trim() : '';
 }
 
 function getMyHandle() {

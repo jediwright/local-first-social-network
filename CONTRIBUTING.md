@@ -50,6 +50,8 @@ Changes touching any of the following are **automatically Critical**, regardless
 **Sync and replication semantics**
 
 - CRDT merge and sync handshake logic (`src/lib/crdt.js`, `src/hooks/useYjs.ts`): anything that changes what state gets replicated, in what order, or what a peer can observe after a sync.
+- The handshake checks in `src/lib/relay.js`: a connection accept or reject is acted on only as the answer to a request this client sent; a sync offer is answered only from a handle whose request this user accepted on the current relay connection; a sync answer is applied only from a handle this client sent an offer to; a live update is applied only from the established peer. No inbound sync message adds or changes a trust entry. Removing or loosening any of these is Critical. Checked by hand with `node test/sync-guards.mjs`.
+- `applyRemoteUpdate()` in `src/lib/crdt.js` restores this device's `identity` and `preferences` after every remote merge, live updates included. A change that lets a remote merge alter either is Critical.
 - `y-indexeddb` persistence configuration and `DB_NAME`: changes to how documents are namespaced on the device.
 - The offline path: changes to how the prototype behaves when the relay is unreachable or a peer is unresponsive.
 
@@ -74,6 +76,7 @@ Changes touching any of the following are **automatically Critical**, regardless
 **Relay state**
 
 - `handleRegistry` and `socketHandles` in `relay/server.js` are in-memory only (S4-4). Introducing any persistent server-side handle store is Critical and contradicts the governing record; it is a seam-decision question, not a build item.
+- `pendingRequests` and `acceptedPairs` in `relay/server.js` are in-memory only and last no longer than the two connections involved: every entry for a handle is removed when that handle is released. The relay forwards an accept or reject only as the answer to a request it routed, and forwards sync messages only between the two handles of an accepted pair, stamped with the sender's registered handle. Persisting either structure, keeping an entry after a handle is released, or forwarding outside a pair is Critical. Checked by hand with `node relay/test/pairing.mjs`.
 - `MAX_PAYLOAD_BYTES` in `relay/server.js` — the largest message the relay accepts (4 MiB, provisional, set 2026-11-10). Raising it increases the memory one message can use on the relay; lowering it shortens the thread history a full sync can carry. A change in either direction is Critical. The revisit conditions are in the code comment. Checked by hand with `node relay/test/payload-limit.mjs`, which fails on a relay with no limit.
 - The message dispatch and socket error handler in `relay/server.js` — the dispatch refuses JSON that is not an object and catches an error thrown by any handler, so a malformed message is refused instead of stopping the relay; the error handler drops a connection after any `ws` error. Removing or narrowing either is Critical. Checked by hand with `node relay/test/malformed-input.mjs` and `node relay/test/payload-limit.mjs`.
 

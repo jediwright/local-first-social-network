@@ -24,6 +24,29 @@ const socketHandles = new Map();
 /** @type {Map<string, Set<WebSocket>>} channelId → Set<socket> */
 const channelPresence = new Map();
 
+/**
+ * Connection requests routed and not yet answered.
+ * Key: pendingKey(requester, target, requestId). In memory only; an entry is
+ * removed when it is answered or when either handle is released.
+ * @type {Map<string, { from: string, to: string }>}
+ */
+const pendingRequests = new Map();
+
+/** Most unanswered requests one handle may have routed at a time. */
+const MAX_PENDING_PER_HANDLE = 20;
+
+/**
+ * Pairs of handles whose connection request was accepted. Sync messages are
+ * forwarded only between the two handles of a pair. In memory only; a pair is
+ * removed when either handle is released, so it never outlives the two
+ * connections that formed it.
+ * @type {Set<string>} pairKey(a, b)
+ */
+const acceptedPairs = new Set();
+
+const pendingKey = (from, to, requestId) => JSON.stringify([from, to, String(requestId)]);
+const pairKey = (a, b) => JSON.stringify([a, b].sort());
+
 // ─── HTTP + WS server ─────────────────────────────────────────────────────────
 
 const server = http.createServer((req, res) => {
@@ -121,7 +144,10 @@ function handleRegister(socket, msg) {
   }
   const normalized = handle.toLowerCase().trim();
   const previous = socketHandles.get(socket);
-  if (previous) { handleRegistry.delete(previous); socketHandles.delete(socket); }
+  if (previous && previous !== normalized) {
+    handleRegistry.delete(previous); socketHandles.delete(socket);
+    releaseHandleState(previous);
+  }
 
   if (handleRegistry.has(normalized)) {
     if (handleRegistry.get(normalized) === socket) {
@@ -153,6 +179,13 @@ function connectionRequest(socket, msg) {
     send(socket, { type: 'CONNECTION_REQUEST_FAILED', requestId, reason: 'TARGET_NOT_FOUND', toHandle: toNorm }); return;
   }
 
+  let outstanding = 0;
+  for (const p of pendingRequests.values()) if (p.from === fromNorm) outstanding++;
+  if (outstanding >= MAX_PENDING_PER_HANDLE) {
+    sendError(socket, 'TOO_MANY_REQUESTS', 'Too many unanswered connection requests'); return;
+  }
+  pendingRequests.set(pendingKey(fromNorm, toNorm, requestId), { from: fromNorm, to: toNorm });
+
   send(targetSocket, { type: 'CONNECTION_REQUEST_INCOMING', requestId, fromHandle: fromNorm });
   send(socket, { type: 'CONNECTION_REQUEST_ROUTED', requestId, toHandle: toNorm });
   console.log(`[relay] routed: ${fromNorm} → ${toNorm}`);
@@ -170,8 +203,14 @@ function connectionAccept(socket, msg) {
     sendError(socket, 'AUTH_ERROR', 'toHandle mismatch'); return;
   }
 
+  // An accept is forwarded only as the answer to a request that was routed.
+  if (!pendingRequests.delete(pendingKey(fromNorm, toNorm, requestId))) {
+    sendError(socket, 'NO_PENDING_REQUEST', 'No matching connection request'); return;
+  }
+
   const requesterSocket = handleRegistry.get(fromNorm);
   if (requesterSocket?.readyState === WebSocket.OPEN) {
+    acceptedPairs.add(pairKey(fromNorm, toNorm));
     send(requesterSocket, { type: 'CONNECTION_ACCEPTED', requestId, byHandle: toNorm, syncSignal: true });
   }
   console.log(`[relay] accepted: ${fromNorm} ← ${toNorm} — exiting handshake path`);
@@ -184,6 +223,9 @@ function connectionReject(socket, msg) {
   const fromNorm = fromHandle.toLowerCase().trim();
 
   if (socketHandles.get(socket) !== toNorm) return;
+
+  // As with an accept: only the answer to a request that was routed.
+  if (!pendingRequests.delete(pendingKey(fromNorm, toNorm, requestId))) return;
 
   const requesterSocket = handleRegistry.get(fromNorm);
   if (requesterSocket?.readyState === WebSocket.OPEN) {
@@ -222,12 +264,37 @@ function syncComplete(socket, msg) {
   console.log(`[relay] sync complete: ${handle} ↔ ${msg.withHandle} — exiting sync path`);
 }
 
+/**
+ * Forward a sync message to another handle. The sender must hold a registered
+ * handle, and the two handles must be an accepted pair. `fromHandle` on the
+ * forwarded message is always the sender's registered handle, never a value
+ * the sender supplied.
+ */
 function relayToHandle(socket, msg, toHandle) {
   if (!toHandle) return;
+  if (typeof toHandle !== 'string') { sendError(socket, 'INVALID_PAYLOAD', 'Malformed message'); return; }
   const fromHandle = socketHandles.get(socket);
-  const targetSocket = handleRegistry.get(toHandle.toLowerCase().trim());
+  const toNorm = toHandle.toLowerCase().trim();
+  if (!fromHandle || !acceptedPairs.has(pairKey(fromHandle, toNorm))) {
+    sendError(socket, 'NOT_CONNECTED', 'No accepted connection with that handle'); return;
+  }
+  const targetSocket = handleRegistry.get(toNorm);
   if (targetSocket?.readyState === WebSocket.OPEN) {
     send(targetSocket, { ...msg, fromHandle });
+  }
+}
+
+/**
+ * Forget everything recorded for a handle that is no longer held: its
+ * unanswered requests and its accepted pairs. Called whenever a handle is
+ * released, so the next socket to register the same handle starts with none.
+ */
+function releaseHandleState(handle) {
+  for (const [key, p] of pendingRequests) {
+    if (p.from === handle || p.to === handle) pendingRequests.delete(key);
+  }
+  for (const key of acceptedPairs) {
+    if (JSON.parse(key).includes(handle)) acceptedPairs.delete(key);
   }
 }
 
@@ -254,6 +321,7 @@ function cleanup(socket) {
   if (handle) {
     handleRegistry.delete(handle);
     socketHandles.delete(socket);
+    releaseHandleState(handle);
     console.log(`[relay] released: ${handle} (total: ${handleRegistry.size})`);
   }
   for (const [channelId, members] of channelPresence.entries()) {

@@ -83,6 +83,11 @@ try {
   carol.send({ type: 'REGISTER_HANDLE', handle: '@carol' }); await carol.next('HANDLE_REGISTERED');
   ok('three handles registered', (await health()).handles === 3);
 
+  // Sync messages are forwarded only inside an accepted connection, so make one.
+  alice.send({ type: 'CONNECTION_REQUEST', fromHandle: '@alice', toHandle: '@bob', requestId: 'pair-1' }); await bob.next('CONNECTION_REQUEST_INCOMING');
+  bob.send({ type: 'CONNECTION_ACCEPT', requestId: 'pair-1', fromHandle: '@alice', toHandle: '@bob' });
+  ok('alice and bob are connected', !!(await alice.next('CONNECTION_ACCEPTED')));
+
   // Under the limit: delivered intact.
   const under = updateOfWireSize(3.9 * 1024 * 1024);
   const underMsg = JSON.stringify({ type: 'CRDT_UPDATE', toHandle: '@bob', update: under });
