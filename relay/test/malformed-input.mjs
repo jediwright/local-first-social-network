@@ -107,6 +107,9 @@ try {
   // After all of that the relay still routes normally.
   if (exited === null) {
     const a = await client(); a.send({ type: 'REGISTER_HANDLE', handle: '@alice' }); await a.next('HANDLE_REGISTERED');
+    // Sync messages are forwarded only inside an accepted connection, so make one.
+    a.send({ type: 'CONNECTION_REQUEST', fromHandle: '@alice', toHandle: '@bystander', requestId: 'pair-1' }); await bystander.next('CONNECTION_REQUEST_INCOMING');
+    bystander.send({ type: 'CONNECTION_ACCEPT', requestId: 'pair-1', fromHandle: '@alice', toHandle: '@bystander' }); await a.next('CONNECTION_ACCEPTED');
     a.send({ type: 'CRDT_UPDATE', toHandle: '@bystander', update: [1, 2, 3] });
     const got = await bystander.next('CRDT_UPDATE');
     ok('relay still routes a normal message afterwards', got?.fromHandle === '@alice');
